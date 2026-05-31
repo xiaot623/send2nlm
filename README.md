@@ -16,7 +16,7 @@
 
 ## What is Send2NLM?
 
-Send2NLM is a **Chrome browser extension (MV3)** that sends the current webpage you're browsing to [Google NotebookLM](https://notebooklm.google.com) as a PDF. It can also automatically trigger **Audio Overviews** (deep-dive podcasts) and **Slide Decks**.
+Send2NLM is a **Chrome browser extension (MV3)** that sends the current webpage you're browsing to [Google NotebookLM](https://notebooklm.google.com) as a PDF. It can also automatically trigger **Audio Overviews** (deep-dive podcasts), **Slide Decks**, and **Video Overviews**.
 
 A lightweight **local Go daemon** handles all the heavy lifting — URL → PDF conversion, uploading to NotebookLM, task generation, status polling, and artifact download. No browser automation. No fragile DOM manipulation.
 
@@ -25,7 +25,7 @@ A lightweight **local Go daemon** handles all the heavy lifting — URL → PDF 
 ## Features
 
 - 🚀 **One-click Send** — Send the current page to any notebook with a single click. No copy-paste, no manual uploads.
-- 🎙️ **AI-Powered Generation** — Turn any article into a deep-dive podcast, presentation slides, and more — all powered by NotebookLM's AI.
+- 🎙️ **AI-Powered Generation** — Turn any article into a deep-dive podcast, presentation slides, video overview, and more — all powered by NotebookLM's AI.
 - 🔔 **Auto-delivery** — Once sent, the daemon monitors generation progress and delivers finished artifacts to wherever you need them — no manual polling required.
 - 🔌 **Extensible Adapters** — Handle any site or integrate any delivery channel. Write a few lines of Go to teach Send2NLM how to convert a specific webpage or where to send the results.
 - 🌐 **English & 简体中文** — Full i18n support out of the box.
@@ -59,7 +59,7 @@ A lightweight **local Go daemon** handles all the heavy lifting — URL → PDF 
 
 1. **PRODUCING** — URL is converted to PDF. Custom adapters handle specific sites (e.g., Lark docs via `lark-cli`); a built-in Default adapter handles all other pages via HTTP fetch → Markdown → PDF.
 2. **UPLOADING** — PDF is uploaded to the target NotebookLM notebook via `notebooklm-py`.
-3. **TASKING** — Selected tasks (Audio Overview / Slide Deck) are triggered.
+3. **TASKING** — Selected tasks (Audio Overview / Slide Deck / Video Overview) are triggered.
 4. **POLLING** — Daemon polls every 30s until all tasks complete (or 40min timeout).
 5. **DOWNLOADING** — Generated artifacts are downloaded to local disk.
 6. **RECEIVING** — Artifacts are delivered to configured receivers (local Downloads folder, Telegram, etc.).
@@ -123,7 +123,7 @@ send2nlm daemon
 send2nlm daemon --port 18923
 
 # One-shot mode (no daemon needed)
-send2nlm send --notebook "abc123" --url "https://example.com" --tasks audio_overview,slide_deck
+send2nlm send --notebook "abc123" --url "https://example.com" --tasks audio_overview,slide_deck,video_overview
 ```
 
 ---
@@ -132,7 +132,7 @@ send2nlm send --notebook "abc123" --url "https://example.com" --tasks audio_over
 
 1. Click the **Send2NLM icon** 🧩 in your Chrome toolbar
 2. **Select a notebook** from the list (or create a new one)
-3. Toggle **Audio Overview** and/or **Slide Deck**
+3. Toggle **Audio Overview**, **Slide Deck**, and/or **Video Overview**
 4. Click **Send**
 5. Watch the progress — the pipeline processes each step automatically
 6. When done, click **View in NotebookLM** to open the notebook

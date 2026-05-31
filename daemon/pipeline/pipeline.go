@@ -110,6 +110,17 @@ func (p *Pipeline) execute(job *core.Job) error {
 				Status:    resp.Status,
 				StartedAt: time.Now().UTC().Format(time.RFC3339),
 			}
+		case "video_overview":
+			resp, err := nlm.GenerateVideo(ctx, job.NotebookID)
+			if err != nil {
+				return fail(err)
+			}
+			genTasks[task] = resp
+			taskResults[task] = core.TaskResult{
+				TaskID:    resp.TaskID,
+				Status:    resp.Status,
+				StartedAt: time.Now().UTC().Format(time.RFC3339),
+			}
 		}
 	}
 	job.TaskResults = taskResults
@@ -190,6 +201,8 @@ func buildResources(job *core.Job, results map[string]core.TaskResult) []sdk.Res
 			mime = "audio/wav"
 		case "slide_deck":
 			mime = "application/pdf"
+		case "video_overview":
+			mime = "video/mp4"
 		}
 		r := sdk.Resource{
 			TaskType:      taskType,

@@ -13,7 +13,7 @@ import (
 
 // Resource is a single artifact produced by the pipeline.
 type Resource struct {
-	TaskType      string // "audio_overview" | "slide_deck"
+	TaskType      string // "audio_overview" | "slide_deck" | "video_overview"
 	AssetPath     string // local file path
 	DeliveryName  string // pre-computed filename (e.g. "Research_Notes_audio.wav")
 	MimeType      string // e.g. "audio/wav", "application/pdf"
@@ -44,6 +44,8 @@ func TaskSuffix(taskType string) string {
 		return "audio"
 	case "slide_deck":
 		return "slide"
+	case "video_overview":
+		return "video"
 	default:
 		return taskType
 	}

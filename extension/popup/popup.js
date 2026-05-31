@@ -22,6 +22,7 @@ const elements = {
   pageUrlPreview: document.getElementById("pageUrlPreview"),
   audioTask: document.getElementById("audioTask"),
   slidesTask: document.getElementById("slidesTask"),
+  videoTask: document.getElementById("videoTask"),
   sendButton: document.getElementById("sendButton"),
   resultNotebook: document.getElementById("resultNotebook"),
   resultUrl: document.getElementById("resultUrl"),
@@ -124,6 +125,7 @@ function renderJob(job) {
   for (const [taskType, label] of [
     ["audio_overview", "Audio Overview"],
     ["slide_deck", "Slide Deck"],
+    ["video_overview", "Video Overview"],
   ]) {
     if (!job.tasks?.includes(taskType)) continue;
     const task = job.task_results?.[taskType];
@@ -162,6 +164,7 @@ async function handleSend() {
   const tasks = [];
   if (elements.audioTask.checked) tasks.push("audio_overview");
   if (elements.slidesTask.checked) tasks.push("slide_deck");
+  if (elements.videoTask.checked) tasks.push("video_overview");
 
   setStatus("Submitting job…");
   try {

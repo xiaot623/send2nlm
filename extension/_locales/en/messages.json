@@ -7,5 +7,6 @@
   "backButton": { "message": "Back" },
   "audioOverview": { "message": "Audio Overview" },
   "slideDeck": { "message": "Slide Deck" },
+  "videoOverview": { "message": "Video Overview" },
   "viewInNotebookLM": { "message": "View in NotebookLM" }
 }

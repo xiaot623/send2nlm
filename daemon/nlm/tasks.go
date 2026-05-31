@@ -16,9 +16,9 @@ type GenTaskResponse struct {
 
 // PollResponse represents the JSON output from `notebooklm artifact poll <taskID> --json`.
 type PollResponse struct {
-	TaskID  string `json:"task_id"`
-	Status  string `json:"status"`
-	Ready   bool   `json:"ready,omitempty"`
+	TaskID string `json:"task_id"`
+	Status string `json:"status"`
+	Ready  bool   `json:"ready,omitempty"`
 }
 
 // DownloadedArtifact records a successfully downloaded artifact.
@@ -62,6 +62,25 @@ func GenerateSlides(ctx context.Context, notebookID string) (*GenTaskResponse, e
 		return nil, fmt.Errorf("decode generate slides: %w", err)
 	}
 	resp.TaskType = "slide_deck"
+	return &resp, nil
+}
+
+// GenerateVideo starts a Video Overview generation via `notebooklm generate video`.
+func GenerateVideo(ctx context.Context, notebookID string) (*GenTaskResponse, error) {
+	out, err := execNotebookLM(ctx,
+		"generate", "video",
+		"-n", notebookID,
+		"Create a concise video overview summarizing the content",
+		"--json",
+	)
+	if err != nil {
+		return nil, err
+	}
+	var resp GenTaskResponse
+	if err := decodeJSON(out, &resp); err != nil {
+		return nil, fmt.Errorf("decode generate video: %w", err)
+	}
+	resp.TaskType = "video_overview"
 	return &resp, nil
 }
 
@@ -129,7 +148,7 @@ func DownloadArtifacts(ctx context.Context, notebookID, outputDir string, tasks 
 
 		switch taskType {
 		case "audio_overview":
-			outputPath = filepath.Join(outputDir, fmt.Sprintf("audio_%s.wav", task.TaskID[:8]))
+			outputPath = filepath.Join(outputDir, fmt.Sprintf("audio_%s.wav", shortTaskID(task.TaskID)))
 			downloadArgs = []string{
 				"download", "audio",
 				"-n", notebookID,
@@ -138,9 +157,18 @@ func DownloadArtifacts(ctx context.Context, notebookID, outputDir string, tasks 
 				"--force",
 			}
 		case "slide_deck":
-			outputPath = filepath.Join(outputDir, fmt.Sprintf("slides_%s.pdf", task.TaskID[:8]))
+			outputPath = filepath.Join(outputDir, fmt.Sprintf("slides_%s.pdf", shortTaskID(task.TaskID)))
 			downloadArgs = []string{
 				"download", "slide-deck",
+				"-n", notebookID,
+				"-a", task.TaskID,
+				outputPath,
+				"--force",
+			}
+		case "video_overview":
+			outputPath = filepath.Join(outputDir, fmt.Sprintf("video_%s.mp4", shortTaskID(task.TaskID)))
+			downloadArgs = []string{
+				"download", "video",
 				"-n", notebookID,
 				"-a", task.TaskID,
 				outputPath,
@@ -161,4 +189,11 @@ func DownloadArtifacts(ctx context.Context, notebookID, outputDir string, tasks 
 		})
 	}
 	return results, nil
+}
+
+func shortTaskID(taskID string) string {
+	if len(taskID) <= 8 {
+		return taskID
+	}
+	return taskID[:8]
 }

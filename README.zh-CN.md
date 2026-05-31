@@ -16,7 +16,7 @@
 
 ## 这是什么？
 
-Send2NLM 是一个 **Chrome 浏览器扩展 (MV3)**，将你正在浏览的网页以 PDF 格式发送到 [Google NotebookLM](https://notebooklm.google.com)，还可自动触发**音频概览**（深度播客）和 **AI 幻灯片**生成。
+Send2NLM 是一个 **Chrome 浏览器扩展 (MV3)**，将你正在浏览的网页以 PDF 格式发送到 [Google NotebookLM](https://notebooklm.google.com)，还可自动触发**音频概览**（深度播客）、**AI 幻灯片**和**视频概览**生成。
 
 一个轻量级的**本地 Go 守护进程**负责所有繁重工作 —— URL → PDF 转换、上传至 NotebookLM、任务生成、状态轮询和产物下载。无需浏览器自动化，无需脆弱的 DOM 操作。
 
@@ -25,7 +25,7 @@ Send2NLM 是一个 **Chrome 浏览器扩展 (MV3)**，将你正在浏览的网�
 ## 特性
 
 - 🚀 **一键发送** — 点击一下，当前网页即刻发送到指定笔记本。无需复制粘贴，无需手动上传。
-- 🎙️ **AI 智能生成** — 把任意文章变成深度播客、演示文稿等更多形式 —— 全部由 NotebookLM AI 驱动。
+- 🎙️ **AI 智能生成** — 把任意文章变成深度播客、演示文稿、视频概览等更多形式 —— 全部由 NotebookLM AI 驱动。
 - 🔔 **自动投递** — 发送后无需等待。Daemon 自动监听生成进度，完成后将产物投递到你需要的任何位置。
 - 🔌 **可扩展适配器** — 处理任意网站，接入任意投递渠道。几行 Go 代码即可教 Send2NLM 如何转换特定网页、或将结果发送到哪里。
 - 🌐 **中英双语** — 开箱即用的国际化支持。
@@ -59,7 +59,7 @@ Send2NLM 是一个 **Chrome 浏览器扩展 (MV3)**，将你正在浏览的网�
 
 1. **PRODUCING（生产）** — URL 转换为 PDF。自定义适配器处理特定站点（如飞书文档通过 `lark-cli`）；内置 Default 适配器处理其他页面（HTTP 抓取 → Markdown → PDF）。
 2. **UPLOADING（上传）** — PDF 通过 `notebooklm-py` 上传到目标 NotebookLM 笔记本。
-3. **TASKING（任务）** — 触发用户选择的任务（音频概览 / 幻灯片）。
+3. **TASKING（任务）** — 触发用户选择的任务（音频概览 / 幻灯片 / 视频概览）。
 4. **POLLING（轮询）** — Daemon 每 30 秒轮询一次任务状态，直到全部完成（最长 40 分钟超时）。
 5. **DOWNLOADING（下载）** — 生成的产物下载到本地磁盘。
 6. **RECEIVING（投递）** — 产物投递到配置的接收器（本地 Downloads 文件夹、Telegram 等）。
@@ -123,7 +123,7 @@ send2nlm daemon
 send2nlm daemon --port 18923
 
 # One-shot 模式（无需 daemon 常驻）
-send2nlm send --notebook "abc123" --url "https://example.com" --tasks audio_overview,slide_deck
+send2nlm send --notebook "abc123" --url "https://example.com" --tasks audio_overview,slide_deck,video_overview
 ```
 
 ---
@@ -132,7 +132,7 @@ send2nlm send --notebook "abc123" --url "https://example.com" --tasks audio_over
 
 1. 点击 Chrome 工具栏中的 **Send2NLM 图标** 🧩
 2. 从列表**选择笔记本**（或新建一个）
-3. 勾选**音频概览**和/或**幻灯片**
+3. 勾选**音频概览**、**幻灯片**和/或**视频概览**
 4. 点击**发送**
 5. 观察进度 —— 流水线自动处理每一步
 6. 完成后，点击**在 NotebookLM 中查看**打开笔记本

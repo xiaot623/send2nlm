@@ -7,5 +7,6 @@
   "backButton": { "message": "返回" },
   "audioOverview": { "message": "音频概览" },
   "slideDeck": { "message": "幻灯片" },
+  "videoOverview": { "message": "视频概览" },
   "viewInNotebookLM": { "message": "在 NotebookLM 中查看" }
 }
