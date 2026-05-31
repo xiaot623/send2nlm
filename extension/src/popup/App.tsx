@@ -8,6 +8,7 @@ import { t } from './i18n';
 import { listSources } from '../shared/daemon-client';
 
 export default function App() {
+  const [isInitialized, setIsInitialized] = useState(false);
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [selectedNotebook, setSelectedNotebook] = useState<Notebook | null>(null);
@@ -15,6 +16,13 @@ export default function App() {
   const [newSourceId, setNewSourceId] = useState<string | null>(null);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<TabInfo | null>(null);
+
+  const [selectedSourceIds, setSelectedSourceIds] = useState<Set<string>>(new Set());
+  const [tasks, setTasks] = useState({
+    audio_overview: false,
+    slide_deck: false,
+    video_overview: false,
+  });
 
   const [statusMsg, setStatusMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
@@ -39,6 +47,8 @@ export default function App() {
           setSources(saved.sources || []);
           setNewSourceId(saved.newSourceId);
           setCurrentJobId(saved.currentJobId);
+          if (saved.selectedSourceIds) setSelectedSourceIds(new Set(saved.selectedSourceIds));
+          if (saved.tasks) setTasks(saved.tasks);
 
           if (saved.currentPage === 1) {
             handleNotebookSelection(saved.selectedNotebook, tab);
@@ -52,12 +62,16 @@ export default function App() {
         }
       } catch (err: any) {
         setStatus(err.message, true);
+      } finally {
+        setIsInitialized(true);
       }
     };
     init();
   }, []);
 
   useEffect(() => {
+    if (!isInitialized) return;
+    
     chrome.storage.local.set({
       appState: {
         currentPage,
@@ -66,9 +80,11 @@ export default function App() {
         newSourceId,
         currentJobId,
         lastUrl: currentTab?.url || "",
+        selectedSourceIds: Array.from(selectedSourceIds),
+        tasks,
       }
     });
-  }, [currentPage, selectedNotebook, sources, newSourceId, currentJobId, currentTab]);
+  }, [currentPage, selectedNotebook, sources, newSourceId, currentJobId, currentTab, selectedSourceIds, tasks]);
 
   const setStatus = (text: string, isError = false) => {
     if (!text) setStatusMsg(null);
@@ -94,9 +110,11 @@ export default function App() {
         }
         result = response.result;
         setNewSourceId(result.source_id);
+        setSelectedSourceIds(new Set([result.source_id]));
       } else {
         result = await listSources(notebook.id);
         setNewSourceId(null);
+        setSelectedSourceIds(new Set());
       }
       setSources(result.sources || []);
       if (result.warning) setStatus(result.warning, true);
@@ -115,7 +133,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <div id="backBar" className={`back-bar ${currentPage === 0 ? 'hidden' : ''}`}>
+      <div id="backBar" className={`back-bar ${currentPage === 0 || currentPage === 1 ? 'hidden' : ''}`}>
         <button id="backButton" className="ghost" type="button" onClick={handleBack}>
           {t('backButton')}
         </button>
@@ -126,12 +144,8 @@ export default function App() {
       </div>
 
       <div className="pages-shell">
-        <div
-          id="pages"
-          className="pages"
-          style={{ transform: `translateX(-${currentPage * 25}%)` }}
-        >
-          <div className="page" id="page-notebooks">
+        {currentPage === 0 && (
+          <div className="page" id="page-notebooks" style={{ height: '480px' }}>
             <NotebooksView
               notebooks={notebooks}
               setNotebooks={setNotebooks}
@@ -139,20 +153,28 @@ export default function App() {
               setStatus={setStatus}
             />
           </div>
+        )}
 
+        {currentPage === 1 && (
           <div className="page" id="page-uploading">
             <UploadingView
               onRetry={() => handleNotebookSelection(selectedNotebook, currentTab)}
               hasError={!!(statusMsg && statusMsg.isError)}
             />
           </div>
+        )}
 
+        {currentPage === 2 && (
           <div className="page" id="page-send">
             <SendView
               notebook={selectedNotebook}
               currentTab={currentTab}
               sources={sources}
               newSourceId={newSourceId}
+              selectedSourceIds={selectedSourceIds}
+              setSelectedSourceIds={setSelectedSourceIds}
+              tasks={tasks}
+              setTasks={setTasks}
               setStatus={setStatus}
               onJobAccepted={(jobId) => {
                 setCurrentJobId(jobId);
@@ -160,7 +182,9 @@ export default function App() {
               }}
             />
           </div>
+        )}
 
+        {currentPage === 3 && (
           <div className="page" id="page-result">
             <ResultView
               jobId={currentJobId}
@@ -168,7 +192,7 @@ export default function App() {
               setStatus={setStatus}
             />
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -8,17 +8,16 @@ interface Props {
   currentTab: TabInfo | null;
   sources: Source[];
   newSourceId: string | null;
+  selectedSourceIds: Set<string>;
+  setSelectedSourceIds: (ids: Set<string>) => void;
+  tasks: { audio_overview: boolean; slide_deck: boolean; video_overview: boolean };
+  setTasks: React.Dispatch<React.SetStateAction<{ audio_overview: boolean; slide_deck: boolean; video_overview: boolean }>>;
   setStatus: (msg: string, isError?: boolean) => void;
   onJobAccepted: (jobId: string) => void;
 }
 
-export function SendView({ notebook, currentTab, sources, newSourceId, setStatus, onJobAccepted }: Props) {
-  const [selectedSourceIds, setSelectedSourceIds] = useState<Set<string>>(new Set(newSourceId ? [newSourceId] : []));
-  const [tasks, setTasks] = useState({
-    audio_overview: false,
-    slide_deck: false,
-    video_overview: false,
-  });
+export function SendView({ notebook, currentTab, sources, newSourceId, selectedSourceIds, setSelectedSourceIds, tasks, setTasks, setStatus, onJobAccepted }: Props) {
+  const [isSending, setIsSending] = useState(false);
 
   const toggleSource = (id: string) => {
     const next = new Set(selectedSourceIds);
@@ -32,6 +31,8 @@ export function SendView({ notebook, currentTab, sources, newSourceId, setStatus
   };
 
   const handleSend = async () => {
+    if (isSending) return;
+    setIsSending(true);
     if (!notebook) {
       setStatus('Notebook is missing.', true);
       return;
@@ -57,12 +58,14 @@ export function SendView({ notebook, currentTab, sources, newSourceId, setStatus
       onJobAccepted(result.job_id);
     } catch (error: any) {
       setStatus(error.message, true);
+    } finally {
+      setIsSending(false);
     }
   };
 
   return (
     <>
-      <div className="detail-card">
+      <div className="section-header shrink-0">
         <div className="label">Notebook</div>
         <div className="value font-semibold">
           {notebook ? `${notebook.emoji || '📒'} ${notebook.title}` : ''}
@@ -126,10 +129,10 @@ export function SendView({ notebook, currentTab, sources, newSourceId, setStatus
           /> 
           <span>{t('videoOverview') || 'Video Overview'}</span>
         </label>
-      </div>
+        </div>
       
-      <button className="primary w-full shadow-sm hover:shadow-md transition-all active:scale-[0.98]" type="button" onClick={handleSend}>
-        {t('sendButton') || 'Send'}
+      <button className="primary w-full mt-4 shrink-0" onClick={handleSend} disabled={isSending || selectedSourceIds.size === 0}>
+        {isSending ? t('sending') : t('sendToNotebook')}
       </button>
     </>
   );

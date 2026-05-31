@@ -6,9 +6,9 @@
   }
 
   body {
-    margin: 0;
     width: 360px;
-    height: 480px;
+    min-height: 160px;
+    margin: 0;
     overflow: hidden;
     font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: #1f2937;
@@ -18,7 +18,7 @@
 
 @layer components {
   .app {
-    @apply h-full flex flex-col;
+    @apply flex flex-col;
   }
 
   .back-bar {
@@ -60,15 +60,15 @@
   }
 
   .pages-shell {
-    @apply overflow-hidden flex-1;
+    @apply overflow-hidden;
   }
 
   .pages {
-    @apply flex h-full w-[400%] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)];
+    @apply flex w-[400%] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)];
   }
 
   .page {
-    @apply w-1/4 h-full px-3.5 py-4 overflow-y-auto;
+    @apply px-3.5 py-4 flex flex-col;
   }
 
   .section-header {
@@ -88,7 +88,9 @@
   }
 
   .notebook-list {
-    @apply grid gap-2 pr-1;
+    @apply grid gap-2 flex-1 overflow-y-auto min-h-0 content-start;
+    margin-right: -14px;
+    padding-right: 14px;
   }
 
   .notebook-item,
@@ -119,11 +121,11 @@
   }
 
   .options {
-    @apply grid gap-2.5 my-4;
+    @apply my-4 grid gap-2.5 shrink-0;
   }
 
   .url-preview {
-    @apply break-words text-gray-900;
+    @apply text-gray-900 break-words shrink-0;
   }
 
   /* Upload spinner & state */
@@ -137,7 +139,9 @@
 
   /* Sources section */
   .sources-section {
-    @apply my-4;
+    @apply my-4 max-h-[240px] overflow-y-auto;
+    margin-right: -14px;
+    padding-right: 14px;
   }
 
   .source-list {

@@ -34,4 +34,10 @@ export interface AppState {
   newSourceId: string | null;
   currentJobId: string | null;
   lastUrl: string;
+  selectedSourceIds?: string[];
+  tasks?: {
+    audio_overview: boolean;
+    slide_deck: boolean;
+    video_overview: boolean;
+  };
 }

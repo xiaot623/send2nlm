@@ -55,7 +55,7 @@ export function NotebooksView({ notebooks, setNotebooks, onSelect, setStatus }: 
 
   return (
     <>
-      <div className="section-header">
+      <div className="section-header shrink-0">
         <div className="section-title">{t('selectNotebook') || 'Select Notebook'}</div>
         <button 
           className="icon-button" 
@@ -69,7 +69,7 @@ export function NotebooksView({ notebooks, setNotebooks, onSelect, setStatus }: 
         </button>
       </div>
 
-      <form className="create-form" onSubmit={handleCreate}>
+      <form className="create-form shrink-0" onSubmit={handleCreate}>
         <input 
           maxLength={2} 
           value={emoji} 
