@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    width: 360px;
+    height: 480px;
+    overflow: hidden;
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #1f2937;
+    background: #f8fafc;
+  }
+}
+
+@layer components {
+  .app {
+    @apply h-full flex flex-col;
+  }
+
+  .back-bar {
+    @apply pt-3 px-3.5;
+  }
+
+  .back-bar.hidden {
+    display: none;
+  }
+
+  .ghost,
+  .primary,
+  .create-form button,
+  .link-button {
+    @apply border-0 rounded-lg py-2.5 px-3 cursor-pointer;
+    font-family: inherit;
+  }
+
+  .ghost {
+    @apply bg-transparent text-blue-600;
+  }
+
+  .primary,
+  .create-form button,
+  .link-button {
+    @apply bg-blue-600 text-white text-center no-underline;
+  }
+
+  .status-banner {
+    @apply mt-3 mx-3.5 py-2.5 px-3 rounded-lg bg-blue-100 text-blue-700;
+  }
+
+  .status-banner.hidden {
+    display: none;
+  }
+
+  .status-banner.error {
+    @apply bg-red-100 text-red-700;
+  }
+
+  .pages-shell {
+    @apply overflow-hidden flex-1;
+  }
+
+  .pages {
+    @apply flex h-full w-[400%] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)];
+  }
+
+  .page {
+    @apply w-1/4 h-full px-3.5 py-4 overflow-y-auto;
+  }
+
+  .section-header {
+    @apply flex justify-between items-center mb-3;
+  }
+
+  .section-title {
+    @apply font-semibold;
+  }
+
+  .icon-button {
+    @apply bg-transparent border-none cursor-pointer text-gray-500 p-1 flex items-center justify-center rounded;
+  }
+
+  .icon-button:hover {
+    @apply bg-gray-100 text-gray-900;
+  }
+
+  .notebook-list {
+    @apply grid gap-2 pr-1;
+  }
+
+  .notebook-item,
+  .detail-card {
+    @apply bg-white border border-gray-200 rounded-lg p-3;
+  }
+
+  .notebook-item {
+    @apply w-full text-left cursor-pointer hover:border-blue-300 hover:shadow-sm;
+  }
+
+  .notebook-title {
+    @apply font-semibold;
+  }
+
+  .label {
+    @apply text-gray-500 text-xs;
+  }
+
+  .create-form {
+    @apply mb-3.5 grid gap-2 items-center;
+    grid-template-columns: 54px 1fr auto;
+  }
+
+  .create-form input {
+    @apply w-full border border-gray-300 rounded-lg py-2.5 px-3;
+    font-family: inherit;
+  }
+
+  .options {
+    @apply grid gap-2.5 my-4;
+  }
+
+  .url-preview {
+    @apply break-words text-gray-900;
+  }
+
+  /* Upload spinner & state */
+  .uploading-state {
+    @apply flex flex-col items-center justify-center h-full text-center gap-4 py-10 px-5;
+  }
+
+  .spinner {
+    @apply w-8 h-8 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin;
+  }
+
+  /* Sources section */
+  .sources-section {
+    @apply my-4;
+  }
+
+  .source-list {
+    @apply flex flex-col gap-2;
+  }
+
+  .source-item {
+    @apply flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-2.5 cursor-pointer hover:bg-gray-50;
+  }
+
+  .source-item.selected {
+    @apply border-blue-600 bg-blue-50;
+  }
+
+  .source-title {
+    @apply flex-1 overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  .new-badge {
+    @apply bg-green-100 text-green-800 text-[10px] px-1.5 py-0.5 rounded font-semibold;
+  }
+}

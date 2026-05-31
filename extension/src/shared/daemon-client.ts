@@ -1,16 +1,16 @@
 const DEFAULT_PORT = 18923;
 const PORT_KEY = "daemon_port";
 
-async function readSavedPort() {
+async function readSavedPort(): Promise<number | null> {
   const result = await chrome.storage.local.get(PORT_KEY);
-  return result?.[PORT_KEY] || null;
+  return (result?.[PORT_KEY] as number) || null;
 }
 
-async function savePort(port) {
+async function savePort(port: number): Promise<void> {
   await chrome.storage.local.set({ [PORT_KEY]: port });
 }
 
-async function request(port, path, options = {}) {
+async function request(port: number, path: string, options: RequestInit = {}): Promise<any> {
   const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     headers: {
       "Content-Type": "application/json",
@@ -34,7 +34,7 @@ async function request(port, path, options = {}) {
   return payload;
 }
 
-export async function resolvePort() {
+export async function resolvePort(): Promise<number> {
   const ports = [DEFAULT_PORT];
   const savedPort = await readSavedPort();
   if (savedPort && savedPort !== DEFAULT_PORT) {
@@ -53,12 +53,12 @@ export async function resolvePort() {
   throw new Error("Send2NLM daemon is not reachable on localhost.");
 }
 
-export async function listNotebooks({ refresh = false } = {}) {
+export async function listNotebooks({ refresh = false } = {}): Promise<any> {
   const port = await resolvePort();
   return request(port, `/notebooks${refresh ? "?refresh=true" : ""}`);
 }
 
-export async function createNotebook(body) {
+export async function createNotebook(body: { title: string; emoji?: string }): Promise<any> {
   const port = await resolvePort();
   return request(port, "/notebooks", {
     method: "POST",
@@ -66,7 +66,7 @@ export async function createNotebook(body) {
   });
 }
 
-export async function createJob(body) {
+export async function createJob(body: { notebook_id: string; url: string; tasks: string[]; source_ids: string[] }): Promise<any> {
   const port = await resolvePort();
   return request(port, "/jobs", {
     method: "POST",
@@ -74,12 +74,12 @@ export async function createJob(body) {
   });
 }
 
-export async function listSources(notebookID) {
+export async function listSources(notebookID: string): Promise<any> {
   const port = await resolvePort();
   return request(port, `/notebooks/${notebookID}/sources`);
 }
 
-export async function uploadResource(notebookID, url) {
+export async function uploadResource(notebookID: string, url: string): Promise<any> {
   const port = await resolvePort();
   return request(port, `/notebooks/${notebookID}/upload`, {
     method: "POST",
@@ -87,7 +87,7 @@ export async function uploadResource(notebookID, url) {
   });
 }
 
-export async function getJob(jobID) {
+export async function getJob(jobID: string): Promise<any> {
   const port = await resolvePort();
   return request(port, `/jobs/${jobID}`);
 }
