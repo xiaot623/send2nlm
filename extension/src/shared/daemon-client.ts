@@ -91,3 +91,15 @@ export async function getJob(jobID: string): Promise<any> {
   const port = await resolvePort();
   return request(port, `/jobs/${jobID}`);
 }
+
+export async function listJobs(status?: string): Promise<any> {
+  const port = await resolvePort();
+  return request(port, `/jobs${status ? `?status=${status}` : ""}`);
+}
+
+export async function clearJobs(): Promise<any> {
+  const port = await resolvePort();
+  return request(port, "/jobs/clear", {
+    method: "POST",
+  });
+}

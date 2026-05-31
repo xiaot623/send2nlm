@@ -65,3 +65,11 @@ func (a *App) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"jobs": jobs})
 }
+
+func (a *App) handleClearJobs(w http.ResponseWriter, r *http.Request) {
+	if err := a.store.ClearCompletedOrFailedJobs(r.Context()); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}

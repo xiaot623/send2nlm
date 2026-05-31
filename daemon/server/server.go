@@ -35,6 +35,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("POST /notebooks/{id}/upload", a.handleUploadResource)
 	mux.HandleFunc("GET /notebooks/{id}/sources", a.handleListSources)
 	mux.HandleFunc("GET /jobs", a.handleListJobs)
+	mux.HandleFunc("POST /jobs/clear", a.handleClearJobs)
 	mux.HandleFunc("POST /jobs", a.handleCreateJob)
 	mux.HandleFunc("GET /jobs/", a.handleGetJob)
 	return withMiddleware(mux)

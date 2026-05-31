@@ -8,5 +8,12 @@
   "audioOverview": { "message": "音频概览" },
   "slideDeck": { "message": "幻灯片" },
   "videoOverview": { "message": "视频概览" },
-  "viewInNotebookLM": { "message": "在 NotebookLM 中查看" }
+  "viewInNotebookLM": { "message": "在 NotebookLM 中查看" },
+  "tasksTitle": { "message": "任务列表" },
+  "clearTasks": { "message": "清空已完成" },
+  "statusPending": { "message": "排队中" },
+  "statusCompleted": { "message": "已完成" },
+  "statusFailed": { "message": "失败" },
+  "loading": { "message": "加载中..." },
+  "noTasks": { "message": "暂无任务" }
 }

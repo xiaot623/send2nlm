@@ -8,5 +8,12 @@
   "audioOverview": { "message": "Audio Overview" },
   "slideDeck": { "message": "Slide Deck" },
   "videoOverview": { "message": "Video Overview" },
-  "viewInNotebookLM": { "message": "View in NotebookLM" }
+  "viewInNotebookLM": { "message": "View in NotebookLM" },
+  "tasksTitle": { "message": "Tasks" },
+  "clearTasks": { "message": "Clear Completed" },
+  "statusPending": { "message": "Pending" },
+  "statusCompleted": { "message": "Completed" },
+  "statusFailed": { "message": "Failed" },
+  "loading": { "message": "Loading..." },
+  "noTasks": { "message": "No tasks found." }
 }

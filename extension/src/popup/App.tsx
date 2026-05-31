@@ -3,6 +3,7 @@ import { NotebooksView } from './components/NotebooksView';
 import { UploadingView } from './components/UploadingView';
 import { SendView } from './components/SendView';
 import { ResultView } from './components/ResultView';
+import { TasksView } from './components/TasksView';
 import { Notebook, Source, TabInfo, AppState } from './types';
 import { t } from './i18n';
 import { listSources } from '../shared/daemon-client';
@@ -56,6 +57,8 @@ export default function App() {
             setCurrentPage(2);
           } else if (saved.currentPage === 3) {
             setCurrentPage(3);
+          } else if (saved.currentPage === 4) {
+            setCurrentPage(4);
           }
         } else {
           await chrome.storage.local.remove("appState");
@@ -128,6 +131,7 @@ export default function App() {
   const handleBack = () => {
     if (currentPage === 2) setCurrentPage(0);
     else if (currentPage === 3) setCurrentPage(2);
+    else if (currentPage === 4) setCurrentPage(0);
     else setCurrentPage(0);
   };
 
@@ -138,6 +142,14 @@ export default function App() {
           {t('backButton')}
         </button>
       </div>
+      
+      {currentPage === 0 && (
+        <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10 }}>
+          <button className="ghost" onClick={() => setCurrentPage(4)} style={{ padding: '4px 8px', fontSize: '18px' }} title={t('tasksTitle') || 'Tasks'}>
+            📋
+          </button>
+        </div>
+      )}
 
       <div id="statusBanner" className={`status-banner ${statusMsg ? (statusMsg.isError ? 'error' : '') : 'hidden'}`}>
         {statusMsg?.text}
@@ -191,6 +203,12 @@ export default function App() {
               notebook={selectedNotebook}
               setStatus={setStatus}
             />
+          </div>
+        )}
+
+        {currentPage === 4 && (
+          <div className="page" id="page-tasks" style={{ height: '480px' }}>
+            <TasksView setStatus={setStatus} />
           </div>
         )}
       </div>

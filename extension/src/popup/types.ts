@@ -19,6 +19,8 @@ export interface Job {
   notebook_id?: string;
   url?: string;
   error?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface TabInfo {

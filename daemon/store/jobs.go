@@ -59,6 +59,11 @@ func (s *Store) UpdateJobStatus(ctx context.Context, id, status string) error {
 	return err
 }
 
+func (s *Store) ClearCompletedOrFailedJobs(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE status IN ('done', 'completed', 'failed')`)
+	return err
+}
+
 func (s *Store) UpdateJobProgress(ctx context.Context, id string, updates map[string]any) error {
 	if len(updates) == 0 {
 		return nil

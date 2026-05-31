@@ -1,4 +1,4 @@
-import { uploadResource } from "../shared/daemon-client";
+import { uploadResource, listJobs } from "../shared/daemon-client";
 
 const uploadTasks = new Map<string, Promise<any>>();
 
@@ -45,3 +45,27 @@ chrome.runtime.onMessage.addListener((message: any, _sender: chrome.runtime.Mess
 
   return false;
 });
+
+// Poll for pending jobs and update badge
+async function checkPendingJobs() {
+  try {
+    const result = await listJobs();
+    if (result && result.jobs) {
+      const pendingJobs = result.jobs.filter((j: any) => j.status !== 'done' && j.status !== 'completed' && j.status !== 'failed');
+      const count = pendingJobs.length;
+      if (count > 0) {
+        chrome.action.setBadgeText({ text: count.toString() });
+        chrome.action.setBadgeBackgroundColor({ color: '#4caf50' });
+      } else {
+        chrome.action.setBadgeText({ text: '' });
+      }
+    }
+  } catch (e) {
+    // Daemon might be down, ignore
+    chrome.action.setBadgeText({ text: '' });
+  }
+}
+
+// Check every 5 seconds
+setInterval(checkPendingJobs, 5000);
+checkPendingJobs();
