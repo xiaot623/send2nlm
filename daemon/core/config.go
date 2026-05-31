@@ -59,7 +59,7 @@ func (c RuntimeConfig) PIDFile() string    { return filepath.Join(c.ConfigDir, "
 func (c RuntimeConfig) ConfigFile() string { return filepath.Join(c.ConfigDir, "config.json") }
 
 type AppConfig struct {
-	Producers map[string]ProducerConfig `json:"producers"`
+	Producers map[string]ProducerConfig  `json:"producers"`
 	Receivers map[string]json.RawMessage `json:"receivers"`
 }
 
@@ -95,6 +95,11 @@ func LoadAppConfig(cfg RuntimeConfig) (AppConfig, error) {
 	if app.Receivers == nil {
 		app.Receivers = map[string]json.RawMessage{}
 	}
+	if _, ok := app.Receivers["lark"]; !ok {
+		app.Receivers["lark"] = mustMarshalJSON(map[string]any{
+			"enabled": false,
+		})
+	}
 	return app, nil
 }
 
@@ -127,6 +132,9 @@ func defaultAppConfig() AppConfig {
 		},
 		Receivers: map[string]json.RawMessage{
 			"download": mustMarshalJSON(ReceiverConfig{Enabled: true}),
+			"lark": mustMarshalJSON(map[string]any{
+				"enabled": false,
+			}),
 			"telegram": mustMarshalJSON(map[string]any{
 				"enabled":   false,
 				"bot_token": "",

@@ -161,6 +161,9 @@ All configuration lives in `~/.send2nlm/`:
 {
   "receivers": {
     "download": { "enabled": true },
+    "lark": {
+      "enabled": false
+    },
     "telegram": {
       "enabled": false,
       "bot_token": "YOUR_BOT_TOKEN",
@@ -169,6 +172,9 @@ All configuration lives in `~/.send2nlm/`:
   }
 }
 ```
+
+Enable `lark` to deliver completion messages and artifacts to the current
+`lark-cli` user through `lark-cli im +messages-send --as bot`.
 
 ---
 

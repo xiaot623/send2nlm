@@ -161,6 +161,9 @@ send2nlm send --notebook "abc123" --url "https://example.com" --tasks audio_over
 {
   "receivers": {
     "download": { "enabled": true },
+    "lark": {
+      "enabled": false
+    },
     "telegram": {
       "enabled": false,
       "bot_token": "你的_BOT_TOKEN",
@@ -169,6 +172,9 @@ send2nlm send --notebook "abc123" --url "https://example.com" --tasks audio_over
   }
 }
 ```
+
+启用 `lark` 后会通过 `lark-cli im +messages-send --as bot` 给当前登录
+`lark-cli` 的用户发送完成消息和产物，不直接调用 OpenAPI 端点。
 
 ---
 

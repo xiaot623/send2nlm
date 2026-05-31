@@ -111,7 +111,8 @@ func runDaemon(args []string) error {
 }
 
 // bootstrapPluginSystem sets the SDK config directory and installs embedded
-// resource scripts (lark.go, telegram.go) into the user config dir on first run.
+// resource scripts (lark producer, lark receiver, telegram receiver) into the
+// user config dir on first run.
 func bootstrapPluginSystem(cfg core.RuntimeConfig) {
 	sdk.SetConfigDir(cfg.ConfigDir)
 
@@ -129,6 +130,7 @@ func bootstrapPluginSystem(cfg core.RuntimeConfig) {
 		log.Printf("[daemon] cannot create receiver dir: %v", err)
 		return
 	}
+	installEmbedded(receiverDir, "lark.go", "receiver_lark/lark.go")
 	installEmbedded(receiverDir, "telegram.go", "receiver/telegram.go")
 }
 
