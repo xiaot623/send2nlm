@@ -118,7 +118,8 @@ func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*Ge
 }
 
 // DownloadArtifacts downloads all completed artifacts to the given directory
-// via `notebooklm download <type> <path> --latest --force`.
+// via `notebooklm download <type> <path> -a <artifactID> --force`.
+// Uses the exact artifact ID from generate/poll to avoid ambiguity.
 func DownloadArtifacts(ctx context.Context, notebookID, outputDir string, tasks map[string]*GenTaskResponse) ([]DownloadedArtifact, error) {
 	results := make([]DownloadedArtifact, 0, len(tasks))
 
@@ -132,16 +133,18 @@ func DownloadArtifacts(ctx context.Context, notebookID, outputDir string, tasks 
 			downloadArgs = []string{
 				"download", "audio",
 				"-n", notebookID,
+				"-a", task.TaskID,
 				outputPath,
-				"--latest", "--force",
+				"--force",
 			}
 		case "slide_deck":
 			outputPath = filepath.Join(outputDir, fmt.Sprintf("slides_%s.pdf", task.TaskID[:8]))
 			downloadArgs = []string{
 				"download", "slide-deck",
 				"-n", notebookID,
+				"-a", task.TaskID,
 				outputPath,
-				"--latest", "--force",
+				"--force",
 			}
 		default:
 			continue
