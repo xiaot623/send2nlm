@@ -28,7 +28,6 @@ A lightweight **local Go daemon** handles all the heavy lifting — URL → PDF 
 - 🎙️ **AI-Powered Generation** — Turn any article into a deep-dive podcast, presentation slides, video overview, and more — all powered by NotebookLM's AI.
 - 🔔 **Auto-delivery** — Once sent, the daemon monitors generation progress and delivers finished artifacts to wherever you need them — no manual polling required.
 - 🔌 **Extensible Adapters** — Handle any site or integrate any delivery channel. Write a few lines of Go to teach Send2NLM how to convert a specific webpage or where to send the results.
-- 🌐 **English & 简体中文** — Full i18n support out of the box.
 
 ---
 
@@ -74,7 +73,7 @@ A lightweight **local Go daemon** handles all the heavy lifting — URL → PDF 
 | [notebooklm-py](https://github.com/teng-lin/notebooklm-py) | `uv tool install "notebooklm-py[cookies]"` | Google RPC API client |
 | [opencli](https://github.com/anthropics/opencli) | `npm i -g opencli` | Web content fetching |
 | Chrome / Chromium | ≥ 110 | MV3 support; also used for cookie-based auth |
-| `wkhtmltopdf` | `brew install wkhtmltopdf` | Optional; preferred for Markdown→PDF |
+| `pandoc` + `xelatex` | `brew install pandoc`<br>`brew install --cask mactex` | Markdown→PDF conversion (required by Default Producer) |
 
 ### One-time setup
 

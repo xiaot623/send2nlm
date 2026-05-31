@@ -74,7 +74,7 @@ Send2NLM 是一个 **Chrome 浏览器扩展 (MV3)**，将你正在浏览的网�
 | [notebooklm-py](https://github.com/teng-lin/notebooklm-py) | `uv tool install "notebooklm-py[cookies]"` | Google RPC API 客户端 |
 | [opencli](https://github.com/anthropics/opencli) | `npm i -g opencli` | 网页内容抓取 |
 | Chrome / Chromium | ≥ 110 | MV3 支持；同时用于 cookie 认证 |
-| `wkhtmltopdf` | `brew install wkhtmltopdf` | 可选；Markdown→PDF 转换首选 |
+| `pandoc` + `xelatex` | `brew install pandoc`<br>`brew install --cask mactex` | Markdown→PDF 转换（Default Producer 必需） |
 
 ### 一次性配置
 
