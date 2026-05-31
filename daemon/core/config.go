@@ -38,38 +38,44 @@ func (c RuntimeConfig) Ensure() error {
 		c.ProducerDir(),
 		c.ReceiverDir(),
 		c.TempDir(),
+		c.PluginCacheDir(),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
 	}
-	return nil
+	return c.ensureConfigFile()
 }
 
 func (c RuntimeConfig) ProducerDir() string { return filepath.Join(c.ConfigDir, "producer") }
 func (c RuntimeConfig) ReceiverDir() string { return filepath.Join(c.ConfigDir, "receiver") }
 func (c RuntimeConfig) TempDir() string     { return filepath.Join(c.ConfigDir, "tmp") }
-func (c RuntimeConfig) DBPath() string      { return filepath.Join(c.ConfigDir, "send2nlm.db") }
-func (c RuntimeConfig) PortFile() string    { return filepath.Join(c.ConfigDir, "daemon.port") }
-func (c RuntimeConfig) PIDFile() string     { return filepath.Join(c.ConfigDir, "daemon.pid") }
-func (c RuntimeConfig) ConfigFile() string  { return filepath.Join(c.ConfigDir, "config.json") }
+func (c RuntimeConfig) PluginCacheDir() string {
+	return filepath.Join(c.ConfigDir, "cache", "plugins")
+}
+func (c RuntimeConfig) DBPath() string     { return filepath.Join(c.ConfigDir, "send2nlm.db") }
+func (c RuntimeConfig) PortFile() string   { return filepath.Join(c.ConfigDir, "daemon.port") }
+func (c RuntimeConfig) PIDFile() string    { return filepath.Join(c.ConfigDir, "daemon.pid") }
+func (c RuntimeConfig) ConfigFile() string { return filepath.Join(c.ConfigDir, "config.json") }
 
 type AppConfig struct {
+	Producers map[string]ProducerConfig `json:"producers"`
 	Receivers map[string]ReceiverConfig `json:"receivers"`
+}
+
+type ProducerConfig struct {
+	Enabled bool   `json:"enabled"`
+	CLI     string `json:"cli,omitempty"`
 }
 
 type ReceiverConfig struct {
 	Enabled  bool   `json:"enabled"`
-	BotToken string `json:"bot_token"`
-	ChatID   string `json:"chat_id"`
+	BotToken string `json:"bot_token,omitempty"`
+	ChatID   string `json:"chat_id,omitempty"`
 }
 
 func LoadAppConfig(cfg RuntimeConfig) (AppConfig, error) {
-	app := AppConfig{
-		Receivers: map[string]ReceiverConfig{
-			"download": {Enabled: true},
-		},
-	}
+	app := defaultAppConfig()
 	data, err := os.ReadFile(cfg.ConfigFile())
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -80,10 +86,45 @@ func LoadAppConfig(cfg RuntimeConfig) (AppConfig, error) {
 	if err := json.Unmarshal(data, &app); err != nil {
 		return AppConfig{}, err
 	}
+	if app.Producers == nil {
+		app.Producers = map[string]ProducerConfig{}
+	}
+	if _, ok := app.Producers["lark"]; !ok {
+		app.Producers["lark"] = ProducerConfig{Enabled: true, CLI: "lark-cli"}
+	}
+	if app.Receivers == nil {
+		app.Receivers = map[string]ReceiverConfig{}
+	}
 	if _, ok := app.Receivers["download"]; !ok {
 		app.Receivers["download"] = ReceiverConfig{Enabled: true}
 	}
 	return app, nil
+}
+
+func (c RuntimeConfig) ensureConfigFile() error {
+	if _, err := os.Stat(c.ConfigFile()); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	data, err := json.MarshalIndent(defaultAppConfig(), "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return os.WriteFile(c.ConfigFile(), data, 0o600)
+}
+
+func defaultAppConfig() AppConfig {
+	return AppConfig{
+		Producers: map[string]ProducerConfig{
+			"lark": {Enabled: true, CLI: "lark-cli"},
+		},
+		Receivers: map[string]ReceiverConfig{
+			"download": {Enabled: true},
+			"telegram": {Enabled: false},
+		},
+	}
 }
 
 func userHomeDir() string {

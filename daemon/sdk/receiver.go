@@ -25,6 +25,7 @@ type Resource struct {
 // Config is the open configuration structure available to scripts.
 // Scripts can only read configuration; writing is handled by daemon/CLI.
 type Config struct {
+	Producers map[string]map[string]interface{} `json:"producers"`
 	Receivers map[string]map[string]interface{} `json:"receivers"`
 }
 
@@ -81,8 +82,8 @@ func sanitizeFilename(name string) string {
 }
 
 var (
-	configDir   string
-	configMu    sync.RWMutex
+	configDir string
+	configMu  sync.RWMutex
 )
 
 // SetConfigDir sets the configuration directory for LoadConfig.
@@ -102,17 +103,33 @@ func LoadConfig() Config {
 	configMu.RUnlock()
 
 	if dir == "" {
-		return Config{Receivers: map[string]map[string]interface{}{}}
+		dir = os.Getenv("SEND2NLM_CONFIG_DIR")
+	}
+	if dir == "" {
+		return emptyConfig()
 	}
 
 	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
 	if err != nil {
-		return Config{Receivers: map[string]map[string]interface{}{}}
+		return emptyConfig()
 	}
 
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return Config{Receivers: map[string]map[string]interface{}{}}
+		return emptyConfig()
+	}
+	if cfg.Producers == nil {
+		cfg.Producers = map[string]map[string]interface{}{}
+	}
+	if cfg.Receivers == nil {
+		cfg.Receivers = map[string]map[string]interface{}{}
 	}
 	return cfg
+}
+
+func emptyConfig() Config {
+	return Config{
+		Producers: map[string]map[string]interface{}{},
+		Receivers: map[string]map[string]interface{}{},
+	}
 }

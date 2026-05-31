@@ -48,22 +48,21 @@ func runDaemon(args []string) error {
 	// ── Plugin system bootstrap ───────────────────────────────────────
 	bootstrapPluginSystem(cfg)
 
-	// Init script engine
-	engine := scriptmgr.NewEngine()
+	loader := scriptmgr.NewLoader(cfg.ConfigDir, cfg.PluginCacheDir())
 
 	// Producer registry
 	producerReg := scriptmgr.NewProducerRegistry()
 	producerReg.RegisterBuiltin(&producer.DefaultProducer{})
-	scriptmgr.LoadProducerDir(engine, producerReg, cfg.ProducerDir())
-	_ = scriptmgr.WatchProducerDir(engine, producerReg, cfg.ProducerDir())
+	scriptmgr.LoadProducerDir(loader, producerReg, cfg.ProducerDir())
+	_ = scriptmgr.WatchProducerDir(loader, producerReg, cfg.ProducerDir())
 
 	// Receiver registry
 	receiverReg := scriptmgr.NewReceiverRegistry()
 	receiverReg.RegisterBuiltin(receiver.NewDownloadReceiver())
-	scriptmgr.LoadReceiverDir(engine, receiverReg, cfg.ReceiverDir())
-	_ = scriptmgr.WatchReceiverDir(engine, receiverReg, cfg.ReceiverDir())
+	scriptmgr.LoadReceiverDir(loader, receiverReg, cfg.ReceiverDir())
+	_ = scriptmgr.WatchReceiverDir(loader, receiverReg, cfg.ReceiverDir())
 
-	log.Printf("[daemon] plugin system initialized")
+	log.Printf("[daemon] external plugin system initialized")
 
 	app := server.NewApp(cfg, db, version, producerReg, receiverReg)
 

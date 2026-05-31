@@ -1,5 +1,5 @@
 // Telegram Receiver — delivers pipeline artifacts to a Telegram chat.
-// Placed in ~/.send2nlm/receiver/ and loaded by the yaegi script engine.
+// Placed in ~/.send2nlm/receiver/ and run as a compiled external plugin.
 //
 // Configuration (in ~/.send2nlm/config.json):
 //   {
@@ -83,9 +83,8 @@ func (r *TelegramReceiver) Receive(ctx context.Context, resources []sdk.Resource
 
 func telegramSendMessage(ctx context.Context, token, chatID, text string) error {
 	body, _ := json.Marshal(map[string]string{
-		"chat_id":    chatID,
-		"text":       text,
-		"parse_mode": "MarkdownV2",
+		"chat_id": chatID,
+		"text":    text,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		"https://api.telegram.org/bot"+token+"/sendMessage",
@@ -146,5 +145,5 @@ func telegramSendDocument(ctx context.Context, token, chatID, path, filename str
 	return nil
 }
 
-// Receiver is the exported variable required by the script engine.
+// Receiver is the exported variable required by the external plugin wrapper.
 var Receiver sdk.Receiver = &TelegramReceiver{}

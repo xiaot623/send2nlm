@@ -1,5 +1,5 @@
 // Lark Producer — converts Feishu/Lark docx URLs to PDF via lark-cli.
-// Placed in ~/.send2nlm/producer/ and loaded by the yaegi script engine.
+// Placed in ~/.send2nlm/producer/ and run as a compiled external plugin.
 //
 // Prerequisites: lark-cli must be installed and authenticated.
 // See: https://github.com/earendil-works/lark-cli
@@ -140,5 +140,5 @@ func extractFileToken(output string) string {
 	return ""
 }
 
-// Producer is the exported variable required by the script engine.
+// Producer is the exported variable required by the external plugin wrapper.
 var Producer sdk.Producer = &LarkProducer{}
