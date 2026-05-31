@@ -28,13 +28,13 @@ const elements = {
   resultSteps: document.getElementById("resultSteps"),
   viewNotebookLink: document.getElementById("viewNotebookLink"),
   statusBanner: document.getElementById("statusBanner"),
+  backBar: document.getElementById("backBar"),
 };
 
 function setPage(page) {
   state.currentPage = page;
   elements.pages.style.transform = `translateX(-${page * 33.3333}%)`;
-  elements.backButton.classList.toggle("hidden", page === 0);
-  elements.refreshButton.classList.toggle("hidden", page !== 0);
+  elements.backBar.classList.toggle("hidden", page === 0);
 }
 
 function setStatus(message, isError = false) {
@@ -60,7 +60,6 @@ function renderNotebooks() {
     button.className = "notebook-item";
     button.innerHTML = `
       <div class="notebook-title">${notebook.emoji || "📒"} ${notebook.title}</div>
-      <div class="notebook-meta">${notebook.source_count || 0} sources</div>
     `;
     button.addEventListener("click", () => {
       state.selectedNotebook = notebook;

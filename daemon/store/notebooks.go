@@ -10,7 +10,7 @@ import (
 
 func (s *Store) ListNotebooks(ctx context.Context) ([]core.Notebook, *time.Time, error) {
 	rows, err := s.db.QueryContext(ctx, `
-SELECT id, title, is_owner, created_at, url, source_count, emoji, cached_at
+SELECT id, title, is_owner, created_at, url, emoji, cached_at
 FROM notebooks
 ORDER BY cached_at DESC, title ASC`)
 	if err != nil {
@@ -24,7 +24,7 @@ ORDER BY cached_at DESC, title ASC`)
 		var n core.Notebook
 		var isOwner int
 		var cachedAt string
-		if err := rows.Scan(&n.ID, &n.Title, &isOwner, &n.CreatedAt, &n.URL, &n.SourceCount, &n.Emoji, &cachedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Title, &isOwner, &n.CreatedAt, &n.URL, &n.Emoji, &cachedAt); err != nil {
 			return nil, nil, err
 		}
 		n.IsOwner = isOwner == 1
@@ -57,9 +57,9 @@ func (s *Store) ReplaceNotebooks(ctx context.Context, notebooks []core.Notebook)
 			n.CachedAt = time.Now().UTC()
 		}
 		if _, err := tx.ExecContext(ctx, `
-INSERT INTO notebooks(id, title, is_owner, created_at, url, source_count, emoji, cached_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			n.ID, n.Title, boolToInt(n.IsOwner), n.CreatedAt, n.URL, n.SourceCount, n.Emoji, n.CachedAt.Format(time.RFC3339)); err != nil {
+INSERT INTO notebooks(id, title, is_owner, created_at, url, emoji, cached_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			n.ID, n.Title, boolToInt(n.IsOwner), n.CreatedAt, n.URL, n.Emoji, n.CachedAt.Format(time.RFC3339)); err != nil {
 			return err
 		}
 	}
@@ -74,17 +74,16 @@ func (s *Store) InsertNotebook(ctx context.Context, notebook core.Notebook) erro
 		notebook.CachedAt = time.Now().UTC()
 	}
 	_, err := s.db.ExecContext(ctx, `
-INSERT INTO notebooks(id, title, is_owner, created_at, url, source_count, emoji, cached_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO notebooks(id, title, is_owner, created_at, url, emoji, cached_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
 title=excluded.title,
 is_owner=excluded.is_owner,
 created_at=excluded.created_at,
 url=excluded.url,
-source_count=excluded.source_count,
 emoji=excluded.emoji,
 cached_at=excluded.cached_at`,
-		notebook.ID, notebook.Title, boolToInt(notebook.IsOwner), notebook.CreatedAt, notebook.URL, notebook.SourceCount, notebook.Emoji, notebook.CachedAt.Format(time.RFC3339))
+		notebook.ID, notebook.Title, boolToInt(notebook.IsOwner), notebook.CreatedAt, notebook.URL, notebook.Emoji, notebook.CachedAt.Format(time.RFC3339))
 	return err
 }
 

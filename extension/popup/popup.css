@@ -17,19 +17,12 @@ body {
   flex-direction: column;
 }
 
-.topbar {
-  display: grid;
-  grid-template-columns: 72px 1fr 72px;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+.back-bar {
+  padding: 12px 14px 0;
 }
 
-.brand {
-  text-align: center;
-  font-weight: 600;
+.back-bar.hidden {
+  display: none;
 }
 
 .ghost,
@@ -59,6 +52,10 @@ body {
 
 .hidden {
   visibility: hidden;
+}
+
+.status-banner.hidden {
+  display: none;
 }
 
 .status-banner {
@@ -91,9 +88,32 @@ body {
   padding: 16px 14px 18px;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .section-title {
   font-weight: 600;
-  margin-bottom: 12px;
+}
+
+.icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.icon-button:hover {
+  background: #f3f4f6;
+  color: #111827;
 }
 
 .notebook-list {
@@ -125,7 +145,7 @@ body {
 }
 
 .create-form {
-  margin-top: 14px;
+  margin-bottom: 14px;
   display: grid;
   grid-template-columns: 54px 1fr auto;
   gap: 8px;

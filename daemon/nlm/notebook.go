@@ -10,13 +10,12 @@ import (
 
 // nbItem matches the JSON output of `notebooklm list --json`.
 type nbItem struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	IsOwner     bool   `json:"is_owner"`
-	CreatedAt   string `json:"created_at"`
-	URL         string `json:"url"`
-	Emoji       string `json:"emoji"`
-	SourceCount int    `json:"source_count"`
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	IsOwner   bool   `json:"is_owner"`
+	CreatedAt string `json:"created_at"`
+	URL       string `json:"url"`
+	Emoji     string `json:"emoji"`
 }
 
 type nbListWrapper struct {
@@ -52,14 +51,13 @@ func toNotebooks(items []nbItem) []core.Notebook {
 			emoji = "📒"
 		}
 		notebooks = append(notebooks, core.Notebook{
-			ID:          item.ID,
-			Title:       item.Title,
-			IsOwner:     item.IsOwner,
-			CreatedAt:   item.CreatedAt,
-			SourceCount: item.SourceCount,
-			URL:         item.URL,
-			Emoji:       emoji,
-			CachedAt:    now,
+			ID:        item.ID,
+			Title:     item.Title,
+			IsOwner:   item.IsOwner,
+			CreatedAt: item.CreatedAt,
+			URL:       item.URL,
+			Emoji:     emoji,
+			CachedAt:  now,
 		})
 	}
 	return notebooks

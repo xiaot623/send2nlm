@@ -177,7 +177,7 @@ send2nlm/
 [Page 1] 获取笔记本列表
     │  popup → daemon GET /notebooks
     │  daemon → 优先从 SQLite 缓存返回 (首次/过期 → notebooklm list --json → 更新缓存)
-    │  daemon → popup: JSON [{title, id, url, source_count}]
+    │  daemon → popup: JSON [{title, id, url}]
     │  底部提供 [刷新] 按钮: 触发重新从 NLM 拉取 + 覆盖缓存
     │  底部提供 [+新建笔记本] 入口
     │
@@ -292,7 +292,6 @@ Daemon 启动时将监听端口写入文件：
       "title": "Research Notes",
       "is_owner": true,
       "created_at": "2024-01-15",
-      "source_count": 3,
       "url": "https://notebooklm.google.com/notebook/abc123-def456"
     }
   ],
@@ -467,7 +466,6 @@ CREATE TABLE IF NOT EXISTS notebooks (
     is_owner    INTEGER DEFAULT 1,
     created_at  TEXT,
     url         TEXT,
-    source_count INTEGER DEFAULT 0,
     emoji       TEXT DEFAULT '📒',
     cached_at   TEXT DEFAULT (datetime('now'))
 );

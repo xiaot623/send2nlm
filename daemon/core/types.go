@@ -21,14 +21,13 @@ const (
 )
 
 type Notebook struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	IsOwner     bool      `json:"is_owner"`
-	CreatedAt   string    `json:"created_at"`
-	SourceCount int       `json:"source_count"`
-	URL         string    `json:"url"`
-	Emoji       string    `json:"emoji,omitempty"`
-	CachedAt    time.Time `json:"cached_at,omitempty"`
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	IsOwner   bool      `json:"is_owner"`
+	CreatedAt string    `json:"created_at"`
+	URL       string    `json:"url"`
+	Emoji     string    `json:"emoji,omitempty"`
+	CachedAt  time.Time `json:"cached_at,omitempty"`
 }
 
 type TaskResult struct {

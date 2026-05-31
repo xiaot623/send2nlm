@@ -32,7 +32,6 @@ CREATE TABLE IF NOT EXISTS notebooks (
     is_owner INTEGER DEFAULT 1,
     created_at TEXT,
     url TEXT,
-    source_count INTEGER DEFAULT 0,
     emoji TEXT DEFAULT '📒',
     cached_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
