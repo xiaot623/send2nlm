@@ -25,7 +25,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"send2nlm/sdk"
 )
@@ -74,7 +73,7 @@ func (r *TelegramReceiver) Receive(ctx context.Context, resources []sdk.Resource
 		if res.AssetPath == "" {
 			continue
 		}
-		if err := telegramSendDocument(ctx, botToken, chatID, res.AssetPath); err != nil {
+		if err := telegramSendDocument(ctx, botToken, chatID, res.AssetPath, res.DeliveryName); err != nil {
 			return fmt.Errorf("telegram document %s: %w", res.TaskType, err)
 		}
 	}
@@ -107,7 +106,7 @@ func telegramSendMessage(ctx context.Context, token, chatID, text string) error 
 	return nil
 }
 
-func telegramSendDocument(ctx context.Context, token, chatID, path string) error {
+func telegramSendDocument(ctx context.Context, token, chatID, path, filename string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -117,7 +116,7 @@ func telegramSendDocument(ctx context.Context, token, chatID, path string) error
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	_ = writer.WriteField("chat_id", chatID)
-	part, err := writer.CreateFormFile("document", filepath.Base(path))
+	part, err := writer.CreateFormFile("document", filename)
 	if err != nil {
 		return err
 	}

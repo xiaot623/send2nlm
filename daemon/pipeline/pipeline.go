@@ -191,13 +191,15 @@ func buildResources(job *core.Job, results map[string]core.TaskResult) []sdk.Res
 		case "slide_deck":
 			mime = "application/pdf"
 		}
-		out = append(out, sdk.Resource{
+		r := sdk.Resource{
 			TaskType:      taskType,
 			AssetPath:     tr.AssetPath,
 			MimeType:      mime,
 			NotebookTitle: job.NotebookTitle,
 			SourceURL:     job.URL,
-		})
+		}
+		r.DeliveryName = sdk.BuildDeliveryName(r)
+		out = append(out, r)
 	}
 	return out
 }

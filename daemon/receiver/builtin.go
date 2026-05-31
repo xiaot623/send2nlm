@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"send2nlm/sdk"
 )
@@ -39,11 +38,7 @@ func (r *DownloadReceiver) Receive(ctx context.Context, resources []sdk.Resource
 		if err != nil {
 			return fmt.Errorf("download receiver: read %s: %w", res.AssetPath, err)
 		}
-		dst := filepath.Join(r.outputDir, fmt.Sprintf("%s_%s%s",
-			time.Now().UTC().Format("20060102_150405"),
-			res.TaskType,
-			filepath.Ext(res.AssetPath),
-		))
+		dst := filepath.Join(r.outputDir, res.DeliveryName)
 		if err := os.WriteFile(dst, src, 0o644); err != nil {
 			return fmt.Errorf("download receiver: write %s: %w", dst, err)
 		}
