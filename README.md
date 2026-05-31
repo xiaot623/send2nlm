@@ -274,13 +274,3 @@ send2nlm/
 ├── dev_assets/          # Dev environment mock
 └── DESIGN.md            # Full design document
 ```
-
----
-
-## License
-
-MIT
-
----
-
-> **Next**: Read the [full design document](./DESIGN.md) for detailed architecture decisions, API specifications, and implementation milestones.
