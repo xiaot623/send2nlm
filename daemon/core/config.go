@@ -60,7 +60,7 @@ func (c RuntimeConfig) ConfigFile() string { return filepath.Join(c.ConfigDir, "
 
 type AppConfig struct {
 	Producers map[string]ProducerConfig `json:"producers"`
-	Receivers map[string]ReceiverConfig `json:"receivers"`
+	Receivers map[string]json.RawMessage `json:"receivers"`
 }
 
 type ProducerConfig struct {
@@ -93,10 +93,7 @@ func LoadAppConfig(cfg RuntimeConfig) (AppConfig, error) {
 		app.Producers["lark"] = ProducerConfig{Enabled: true, CLI: "lark-cli"}
 	}
 	if app.Receivers == nil {
-		app.Receivers = map[string]ReceiverConfig{}
-	}
-	if _, ok := app.Receivers["download"]; !ok {
-		app.Receivers["download"] = ReceiverConfig{Enabled: true}
+		app.Receivers = map[string]json.RawMessage{}
 	}
 	return app, nil
 }
@@ -115,14 +112,26 @@ func (c RuntimeConfig) ensureConfigFile() error {
 	return os.WriteFile(c.ConfigFile(), data, 0o600)
 }
 
+func mustMarshalJSON(v any) json.RawMessage {
+	data, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
 func defaultAppConfig() AppConfig {
 	return AppConfig{
 		Producers: map[string]ProducerConfig{
 			"lark": {Enabled: true, CLI: "lark-cli"},
 		},
-		Receivers: map[string]ReceiverConfig{
-			"download": {Enabled: true},
-			"telegram": {Enabled: false},
+		Receivers: map[string]json.RawMessage{
+			"download": mustMarshalJSON(ReceiverConfig{Enabled: true}),
+			"telegram": mustMarshalJSON(map[string]any{
+				"enabled":   false,
+				"bot_token": "",
+				"chat_id":   "",
+			}),
 		},
 	}
 }
