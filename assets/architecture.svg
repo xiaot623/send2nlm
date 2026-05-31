@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600">
+  <style>
+    text { font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .title { font-size: 20px; font-weight: 700; fill: #111827; }
+    .section-title { font-size: 13px; font-weight: 700; fill: #6b7280; letter-spacing: 0.5px; }
+    .node-label { font-size: 13px; font-weight: 600; fill: #111827; }
+    .node-sub { font-size: 11px; fill: #6b7280; }
+    .edge-label { font-size: 11px; fill: #6b7280; }
+    .legend-label { font-size: 11px; fill: #6b7280; }
+  </style>
+
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#7c3aed"/>
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+    </marker>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="106%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="960" height="600" fill="#ffffff"/>
+
+  <text x="480" y="36" text-anchor="middle" class="title">Send2NLM — Architecture Overview</text>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 1: Chrome Extension -->
+  <!-- ============================================================ -->
+  <rect x="30" y="55" width="900" height="160" rx="10" ry="10" fill="#fafbfc" stroke="#e5e7eb" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="55" width="900" height="32" rx="10" ry="10" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+  <rect x="30" y="77" width="900" height="10" fill="#eff6ff"/>
+  <text x="50" y="76" class="section-title">Chrome Extension (MV3)</text>
+
+  <rect x="80" y="105" width="200" height="50" rx="6" ry="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  <text x="180" y="126" text-anchor="middle" class="node-label">Popup UI</text>
+  <text x="180" y="142" text-anchor="middle" class="node-sub">Notebook Select + Send</text>
+
+  <rect x="380" y="105" width="200" height="50" rx="6" ry="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  <text x="480" y="126" text-anchor="middle" class="node-label">Daemon Client</text>
+  <text x="480" y="142" text-anchor="middle" class="node-sub">HTTP Communication</text>
+
+  <rect x="680" y="105" width="200" height="50" rx="6" ry="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  <text x="780" y="126" text-anchor="middle" class="node-label">Service Worker</text>
+  <text x="780" y="142" text-anchor="middle" class="node-sub">Get Tab URL</text>
+
+  <line x1="280" y1="130" x2="375" y2="130" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <line x1="580" y1="130" x2="675" y2="130" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+
+  <rect x="80" y="170" width="200" height="28" rx="4" ry="4" fill="#f3f4f6" stroke="none"/>
+  <text x="180" y="189" text-anchor="middle" class="node-sub">i18n (en / zh-CN)</text>
+  <rect x="380" y="170" width="200" height="28" rx="4" ry="4" fill="#f3f4f6" stroke="none"/>
+  <text x="480" y="189" text-anchor="middle" class="node-sub">chrome.storage</text>
+  <rect x="680" y="170" width="200" height="28" rx="4" ry="4" fill="#f3f4f6" stroke="none"/>
+  <text x="780" y="189" text-anchor="middle" class="node-sub">chrome.tabs</text>
+
+  <!-- Bridge -->
+  <line x1="480" y1="218" x2="480" y2="260" stroke="#2563eb" stroke-width="2.2" marker-end="url(#arrow-blue)"/>
+  <rect x="504" y="230" width="130" height="18" rx="3" ry="3" fill="#ffffff" opacity="0.95"/>
+  <text x="514" y="243" class="edge-label">HTTP localhost:18923</text>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: Go Daemon -->
+  <!-- ============================================================ -->
+  <rect x="30" y="258" width="900" height="265" rx="10" ry="10" fill="#fafbfc" stroke="#e5e7eb" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="30" y="258" width="900" height="32" rx="10" ry="10" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+  <rect x="30" y="280" width="900" height="10" fill="#f0fdf4"/>
+  <text x="50" y="279" class="section-title">Go Daemon (Local Process)</text>
+
+  <!-- Top row: Server / Pipeline / Resume -->
+  <rect x="80" y="310" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  <text x="170" y="330" text-anchor="middle" class="node-label">HTTP Server</text>
+  <text x="170" y="346" text-anchor="middle" class="node-sub">REST API + CORS</text>
+
+  <rect x="340" y="310" width="240" height="48" rx="6" ry="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  <text x="460" y="330" text-anchor="middle" class="node-label">Pipeline (State Machine)</text>
+  <text x="460" y="346" text-anchor="middle" class="node-sub">PENDING → PRODUCING → ... → DONE</text>
+
+  <rect x="660" y="310" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+  <text x="750" y="330" text-anchor="middle" class="node-label">Resume / Oneshot</text>
+  <text x="750" y="346" text-anchor="middle" class="node-sub">CLI + Crash Recovery</text>
+
+  <line x1="260" y1="334" x2="335" y2="334" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <line x1="580" y1="334" x2="655" y2="334" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+  <!-- Subsystem row: Producer / NLM Client / Receiver -->
+  <rect x="80" y="390" width="230" height="72" rx="6" ry="6" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.2"/>
+  <text x="195" y="410" text-anchor="middle" class="node-label">Producer Adapters</text>
+  <text x="195" y="426" text-anchor="middle" class="node-sub">URL → PDF</text>
+  <rect x="100" y="435" width="65" height="20" rx="4" ry="4" fill="#dbeafe" stroke="none"/>
+  <text x="132" y="449" text-anchor="middle" font-size="10" fill="#1d4ed8">Default</text>
+  <rect x="172" y="435" width="55" height="20" rx="4" ry="4" fill="#dbeafe" stroke="none"/>
+  <text x="199" y="449" text-anchor="middle" font-size="10" fill="#1d4ed8">Lark</text>
+  <rect x="234" y="435" width="55" height="20" rx="4" ry="4" fill="#dbeafe" stroke="none"/>
+  <text x="261" y="449" text-anchor="middle" font-size="10" fill="#1d4ed8">Custom</text>
+
+  <rect x="365" y="390" width="230" height="72" rx="6" ry="6" fill="#fef2f2" stroke="#fecaca" stroke-width="1.2"/>
+  <text x="480" y="410" text-anchor="middle" class="node-label">NLM Client</text>
+  <text x="480" y="426" text-anchor="middle" class="node-sub">notebooklm-py CLI Wrapper</text>
+  <rect x="382" y="435" width="65" height="20" rx="4" ry="4" fill="#fee2e2" stroke="none"/>
+  <text x="414" y="449" text-anchor="middle" font-size="10" fill="#b91c1c">Upload</text>
+  <rect x="454" y="435" width="65" height="20" rx="4" ry="4" fill="#fee2e2" stroke="none"/>
+  <text x="486" y="449" text-anchor="middle" font-size="10" fill="#b91c1c">Generate</text>
+  <rect x="526" y="435" width="52" height="20" rx="4" ry="4" fill="#fee2e2" stroke="none"/>
+  <text x="552" y="449" text-anchor="middle" font-size="10" fill="#b91c1c">Poll</text>
+
+  <rect x="650" y="390" width="230" height="72" rx="6" ry="6" fill="#faf5ff" stroke="#ddd6fe" stroke-width="1.2"/>
+  <text x="765" y="410" text-anchor="middle" class="node-label">Receiver Adapters</text>
+  <text x="765" y="426" text-anchor="middle" class="node-sub">Artifact Delivery</text>
+  <rect x="670" y="435" width="75" height="20" rx="4" ry="4" fill="#ede9fe" stroke="none"/>
+  <text x="707" y="449" text-anchor="middle" font-size="10" fill="#6d28d9">Download</text>
+  <rect x="752" y="435" width="65" height="20" rx="4" ry="4" fill="#ede9fe" stroke="none"/>
+  <text x="784" y="449" text-anchor="middle" font-size="10" fill="#6d28d9">Telegram</text>
+  <rect x="824" y="435" width="36" height="20" rx="4" ry="4" fill="#ede9fe" stroke="none"/>
+  <text x="842" y="449" text-anchor="middle" font-size="10" fill="#6d28d9">...</text>
+
+  <!-- Arrows from Pipeline to subsystems -->
+  <path d="M 460 358 L 460 372 L 195 372 L 195 385" stroke="#16a34a" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
+  <path d="M 460 358 L 460 385" stroke="#ea580c" stroke-width="1.5" fill="none" marker-end="url(#arrow-orange)"/>
+  <path d="M 460 358 L 460 372 L 765 372 L 765 385" stroke="#7c3aed" stroke-width="1.5" fill="none" marker-end="url(#arrow-purple)"/>
+
+  <!-- ============================================================ -->
+  <!-- SQLite Store -->
+  <!-- ============================================================ -->
+  <rect x="80" y="480" width="800" height="32" rx="6" ry="6" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1.2"/>
+  <text x="480" y="501" text-anchor="middle" class="node-label">SQLite Store</text>
+  <text x="620" y="501" text-anchor="middle" class="node-sub">— Notebook Cache + Job Persistence</text>
+
+  <!-- Arrows from subsystems to SQLite -->
+  <path d="M 195 462 L 195 475" stroke="#6b7280" stroke-width="1" fill="none" marker-end="url(#arrow-gray)"/>
+  <path d="M 480 462 L 480 475" stroke="#6b7280" stroke-width="1" fill="none" marker-end="url(#arrow-gray)"/>
+  <path d="M 765 462 L 765 475" stroke="#6b7280" stroke-width="1" fill="none" marker-end="url(#arrow-gray)"/>
+
+  <!-- ============================================================ -->
+  <!-- LEGEND -->
+  <!-- ============================================================ -->
+  <g transform="translate(32, 548)">
+    <rect x="0" y="-4" width="896" height="36" rx="4" ry="4" fill="#f9fafb" stroke="none"/>
+    <line x1="10" y1="10" x2="38" y2="10" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-blue)"/>
+    <text x="44" y="14" class="legend-label">HTTP / Control</text>
+    <line x1="170" y1="10" x2="198" y2="10" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+    <text x="204" y="14" class="legend-label">Producer</text>
+    <line x1="300" y1="10" x2="328" y2="10" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+    <text x="334" y="14" class="legend-label">NotebookLM</text>
+    <line x1="450" y1="10" x2="478" y2="10" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+    <text x="484" y="14" class="legend-label">Receiver</text>
+    <line x1="590" y1="10" x2="618" y2="10" stroke="#6b7280" stroke-width="1" marker-end="url(#arrow-gray)"/>
+    <text x="624" y="14" class="legend-label">R/W (SQLite)</text>
+    <rect x="730" y="4" width="45" height="12" rx="2" ry="2" fill="#f3f4f6" stroke="none"/>
+    <text x="782" y="14" class="legend-label">Auxiliary</text>
+  </g>
+
+</svg>

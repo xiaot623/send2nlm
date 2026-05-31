@@ -68,7 +68,7 @@ send2nlm/
 │   │   ├── daemon.go             # daemon 模式: 启动 HTTP server
 │   │   ├── oneshot.go            # one-shot 模式: send 命令直接执行
 │   │   └── stop.go               # stop 模式: 发送 shutdown 信号
-│   ├── sdk/                      # SDK 接口定义 (daemon 和脚本共享的类型)
+│   ├── sdk/                      # SDK 接口定义 (daemon 和适配器共享的类型)
 │   │   ├── producer.go           # Producer 接口
 │   │   └── receiver.go           # Receiver 接口
 │   ├── server/
@@ -84,9 +84,8 @@ send2nlm/
 │   │   ├── db.go                 # SQLite 初始化、连接管理
 │   │   ├── notebooks.go          # 笔记本缓存 CRUD
 │   │   └── jobs.go               # Job 持久化 CRUD
-│   ├── scriptmgr/                # 脚本管理器 (yaegi 解释器 + 文件监听)
-│   │   ├── engine.go             # yaegi 解释器初始化、sdk 符号导出
-│   │   ├── watcher.go            # fsnotify 监听目录变化，自动热加载
+│   ├── scriptmgr/                # 适配器管理器 (子进程编译缓存 + 文件监听)
+│   │   ├── external.go           # 外部适配器发现、编译缓存、通信协议
 │   │   ├── producer_registry.go  # Producer 注册表 + for-loop 调度
 │   │   └── receiver_registry.go  # Receiver 注册表 + 调用链
 │   ├── producer/
@@ -102,21 +101,21 @@ send2nlm/
 │   │   └── md2pdf.go             # Markdown → PDF 转换 (goldmark + wkhtmltopdf/chromedp)
 │   └── resources/                # go:embed 内嵌资源 (首次使用时复制到 ~/.send2nlm/)
 │       ├── producer/
-│       │   └── lark.go           # Lark Producer 扩展脚本
+│       │   └── lark.go           # Lark Producer 扩展适配器
 │       └── receiver/
-│           └── telegram.go       # Telegram Receiver 扩展脚本
+│           └── telegram.go       # Telegram Receiver 扩展适配器
 │
-├── scripts/                      # 脚本示例 (用户可直接复制到 ~/.send2nlm/)
+├── scripts/                      # 适配器示例 (用户可直接复制到 ~/.send2nlm/)
 │   ├── producer/
 │   │   └── lark.go               # → ~/.send2nlm/producer/lark.go
 │   ├── receiver/
 │   │   ├── telegram.go           # → ~/.send2nlm/receiver/telegram.go
 │   │   └── example.go            # Receiver 示例模板
-│   └── README.md                 # 脚本编写指南
+│   └── README.md                 # 适配器编写指南
 │
 ├── dev_assets/                   # 开发环境模拟目录 (替代 ~/.send2nlm)
-│   ├── producer/                 # 开发用 producer 脚本 (.go)
-│   ├── receiver/                 # 开发用 receiver 脚本 (.go)
+│   ├── producer/                 # 开发用 producer 适配器 (.go)
+│   ├── receiver/                 # 开发用 receiver 适配器 (.go)
 │   └── send2nlm.db               # 开发用 SQLite 数据库
 │
 ├── DESIGN.md                     # 本文档
@@ -515,37 +514,40 @@ func (s *Store) GetPendingJobs() ([]Job, error)  // 用于 resume
 
 ## 7. Producer 适配器系统 (URL → PDF)
 
-采用 **yaegi Go 解释器** 实现开闭原则：用户将 `.go` 脚本放入 `~/.send2nlm/producer/` 目录，daemon 自动发现、解释执行，**无需编译、无需重启**。
+采用 **子进程 + 编译缓存** 方案实现开闭原则：用户将 `.go` 源码文件放入 `~/.send2nlm/producer/` 目录，daemon 自动编译为独立二进制并缓存，通过 stdio JSON 协议通信。**无需手动编译、无需重启 daemon**。
 
 ### 7.1 运行时架构
 
 ```
 ~/.send2nlm/producer/             daemon (scriptmgr)
-┌─────────────────────┐          ┌──────────────────────────┐
-│ lark.go             │          │  fsnotify 监听目录变化    │
-│ my_site.go          │ ──加载──▶│  yaegi 解释器执行脚本     │
-│ ...                 │          │  提取 Producer 符号       │
-└─────────────────────┘          │  注册到 ProducerRegistry  │
-                                 └──────────────────────────┘
+┌─────────────────────┐          ┌──────────────────────────────┐
+│ lark.go             │          │  fsnotify 监听目录变化        │
+│ my_site.go          │ ──发现──▶│  go build 编译为独立二进制    │
+│ ...                 │          │  缓存到 cache/producer/<hash>/ │
+└─────────────────────┘          │  通过 stdin/stdout JSON       │
+                                 │  调用子进程通信               │
+                                 │  注册到 ProducerRegistry      │
+                                 └──────────────────────────────┘
 ```
 
 关键特性：
-- **热加载**：daemon 使用 `fsnotify` 监听脚本目录，新增/修改/删除立即可见
-- **零编译**：yaegi 是纯 Go 写的 Go 解释器，直接解释执行 `.go` 源码
-- **不修改本体**：脚本和 daemon 完全解耦，daemon 二进制无需重新构建
+- **自动编译缓存**：daemon 对每个 `.go` 源码做 SHA256 哈希，编译结果缓存到 `~/.send2nlm/cache/producer/<hash>/plugin`。源码不变则直接复用缓存二进制，**零启动开销**。
+- **文件监听热更新**：daemon 使用 `fsnotify` 监听适配器目录，新增/修改/删除 `.go` 文件时自动重新编译并替换注册表中的适配器实例。
+- **子进程隔离**：每个适配器作为独立子进程运行，通过 stdin/stdout 传递 JSON 消息；单个适配器崩溃不影响 daemon 或其他适配器。
+- **不修改本体**：适配器与 daemon 完全解耦，daemon 二进制无需重新构建。
 
 ### 7.2 SDK 接口定义
 
 ```go
-// sdk/producer.go  —— 编译进 daemon，yaegi 脚本通过 sdk 包与此接口交互
+// sdk/producer.go  —— 编译进 daemon，外部适配器通过子进程通信实现此接口
 
 package sdk
 
 import "context"
 
 // Producer 是 URL → PDF 的适配器接口。
-// 每个脚本文件需导出一个名为 "Producer" 的包级变量，
-// 其类型实现此接口。
+// 外部适配器需实现此接口，并通过 ServeProducer 暴露为子进程。
+// 内置适配器直接实现此接口注册到 ProducerRegistry。
 type Producer interface {
     Name() string
     Match(url string) bool
@@ -553,38 +555,65 @@ type Producer interface {
 }
 ```
 
-### 7.3 脚本管理器 (scriptmgr)
+外部适配器使用 `sdk.ServeProducer()` 将实现封装为 stdio JSON 子进程：
 
 ```go
-// scriptmgr/engine.go
-// 初始化 yaegi 解释器，将 sdk 包的符号导出到脚本运行环境
-func NewEngine() (*Engine, error)
+// sdk/plugin_stdio.go  —— 子进程通信协议
 
-// scriptmgr/watcher.go
-// 使用 fsnotify 监听 producerDir，脚本变化时自动重新加载
-func (e *Engine) WatchProducerDir(dir string, registry *ProducerRegistry) error
+// ServeProducer 将 Producer 实现封装为 stdio JSON 子进程。
+// 适配器的 main() 调用此函数即可与 daemon 通信。
+func ServeProducer(p Producer)
+```
+
+**通信协议**（stdin → stdout，一行一条 JSON 消息）：
+
+| 方法 | 请求 | 响应 |
+|------|------|------|
+| `metadata` | `{"method":"metadata"}` | `{"name":"lark"}` |
+| `match` | `{"method":"match","url":"https://..."}` | `{"name":"lark","match":true}` |
+| `produce` | `{"method":"produce","url":"https://..."}` | `{"name":"lark","pdf_path":"/tmp/..."}` |
+
+### 7.3 适配器管理器 (scriptmgr)
+
+```go
+// scriptmgr/external.go
+// 核心职责：发现 .go 源文件 → 编译缓存 → 子进程调用
+type Loader struct {
+    configDir string  // ~/.send2nlm
+    cacheDir  string  // ~/.send2nlm/cache
+    moduleDir string  // daemon 模块根目录 (go build 用)
+}
+
+func NewLoader(configDir, cacheDir string) *Loader
+func (l *Loader) compile(path string, kind PluginKind) (*compiledPlugin, error)
+    // 1. 读源码 → SHA256 哈希
+    // 2. 检查缓存目录 <cacheDir>/<kind>/<hash>/plugin，已有则跳过编译
+    // 3. 否则: 重写 package → main, 追加 main() { sdk.ServeProducer(Producer) }
+    // 4. go build → 输出二进制到缓存目录
+    // 5. 调用 metadata 获取适配器名称
+    // 6. 返回 compiledPlugin (封装二进制路径 + 配置目录)
 
 // scriptmgr/producer_registry.go
 type ProducerRegistry struct {
     builtins []sdk.Producer   // Default (编译进 daemon, 唯一内置兜底)
-    scripts  []sdk.Producer   // 从 .go 脚本解释加载的 (热加载可变, 含 Lark)
-    mu       sync.RWMutex     // 脚本热加载时保护读写
+    scripts  []sdk.Producer   // 子进程适配器 (编译缓存加载, 含 Lark)
+    mu       sync.RWMutex     // 热更新时保护读写
 }
 
-// Resolve 按优先级 for-loop：扩展脚本优先 (含 Lark) → 内置 Default fallback
+// Resolve 按优先级 for-loop：外部适配器优先 (含 Lark) → 内置 Default fallback
 // 首个 Match 且 Produce 成功立即返回
 func (r *ProducerRegistry) Resolve(ctx context.Context, url string) (pdfPath string, err error)
 ```
 
-### 7.4 脚本编写规范
+### 7.4 适配器编写规范
 
-脚本是标准 Go 源码文件，放入 `~/.send2nlm/producer/*.go` 即生效。
+适配器是标准 Go 源码文件，放入 `~/.send2nlm/producer/*.go` 即生效。daemon 自动编译缓存，无需手动操作。
 
-#### 最小的 Producer 脚本
+#### 最小的 Producer 适配器
 
 ```go
 // ~/.send2nlm/producer/my_site.go
-// 无需编译！daemon 通过 yaegi 直接解释执行
+// 无需手动编译！daemon 自动 go build 并缓存
 
 package producer  // 包名随意，但不能是 main
 
@@ -613,7 +642,7 @@ func (p *MyProducer) Produce(ctx context.Context, url string) (string, error) {
 var Producer sdk.Producer = &MyProducer{}
 ```
 
-#### Lark 脚本 (随 daemon 分发的扩展脚本，首次运行自动复制到 producer 目录)
+#### Lark 适配器 (随 daemon 分发的扩展，首次运行自动复制到 producer 目录)
 
 ```go
 // resources/producer/lark.go → 首次运行时复制到 ~/.send2nlm/producer/lark.go
@@ -669,9 +698,9 @@ var Producer sdk.Producer = &LarkProducer{}
 
 ### 7.5 唯一内置 Producer (编译进 daemon)
 
-**仅 Default Producer 编译进 daemon 二进制**，作为最后的 fallback 保证——当所有扩展脚本都无法处理某个 URL 时，由 Default 兜底。
+**仅 Default Producer 编译进 daemon 二进制**，作为最后的 fallback 保证——当所有外部适配器都无法处理某个 URL 时，由 Default 兜底。
 
-Lark Producer 是**作为资源文件随 daemon 分发的扩展脚本**（见 7.4），与其他用户脚本一样通过 yaegi 加载，首次运行时自动复制到 `~/.send2nlm/producer/`。
+Lark Producer 是**作为资源文件随 daemon 分发的扩展适配器**（见 7.4），与其他用户适配器一样通过子进程加载，首次运行时自动复制到 `~/.send2nlm/producer/`。
 
 #### Default Producer (通用 fallback — 最低优先级)
 
@@ -706,7 +735,7 @@ func (p *DefaultProducer) Produce(ctx context.Context, url string) (string, erro
 
 Daemon 启动时检查 `~/.send2nlm/producer/` 目录：
 - 若 `lark.go` 不存在，从 Go 内嵌资源 (`//go:embed resources/producer/lark.go`) 复制到该目录
-- 脚本目录下的所有 `.go` 文件由 `scriptmgr/watcher.go` 自动发现并加载
+- 适配器目录下的所有 `.go` 文件由 `scriptmgr` 自动发现、编译缓存并加载
 
 ---
 
@@ -951,7 +980,7 @@ func (p *Pipeline) Resume() error {
 
 ## 10. Receiver 适配器系统 (资源投递)
 
-与 Producer 对称，Receiver 也采用 yaegi Go 脚本。**仅 Download Receiver 编译进 daemon**（内置兜底）。Telegram 接收器作为资源文件随 daemon 分发，与其他用户脚本一样通过 yaegi 加载。外部接收器以 `.go` 脚本形式放在 `~/.send2nlm/receiver/`，**热加载、无需编译、无需重启**。
+与 Producer 对称，Receiver 也采用 **子进程 + 编译缓存** 方案。**仅 Download Receiver 编译进 daemon**（内置兜底）。Telegram 接收器作为资源文件随 daemon 分发，与其他用户适配器一样通过子进程加载。外部接收器以 `.go` 源码文件形式放在 `~/.send2nlm/receiver/`，**自动编译缓存、无需重启**。
 
 ### 10.1 SDK 接口定义
 
@@ -972,8 +1001,8 @@ type Resource struct {
     SourceURL      string
 }
 
-// Config 是开放给脚本读取的配置结构。
-// 脚本只能读取配置；写入配置由 daemon/CLI 负责。
+// Config 是开放给适配器读取的配置结构。
+// 适配器只能读取配置；写入配置由 daemon/CLI 负责。
 type Config struct {
     Receivers map[string]map[string]interface{} `json:"receivers"`
 }
@@ -981,25 +1010,25 @@ type Config struct {
 func LoadConfig() Config
 
 // Receiver 是资源投递适配器接口。
-// 每个脚本文件需导出一个名为 "Receiver" 的包级变量，
-// 其类型实现此接口。
+// 外部适配器需实现此接口，并通过 ServeReceiver 暴露为子进程。
+// 内置适配器直接实现此接口注册到 ReceiverRegistry。
 type Receiver interface {
     Name() string
     Receive(ctx context.Context, resources []Resource) error
 }
 ```
 
-### 10.2 脚本管理器
+### 10.2 适配器管理器
 
 ```go
-// scriptmgr/watcher.go
-// 同时监听 producerDir 和 receiverDir，脚本变化时自动热加载
-func (e *Engine) WatchReceiverDir(dir string, registry *ReceiverRegistry) error
+// scriptmgr/external.go
+// 同时管理 producer 和 receiver 目录的编译缓存与加载
+func (l *Loader) compile(path string, kind PluginKind) (*compiledPlugin, error)
 
 // scriptmgr/receiver_registry.go
 type ReceiverRegistry struct {
     builtins []sdk.Receiver   // DownloadReceiver (编译进 daemon)
-    scripts  []sdk.Receiver   // 从 .go 脚本加载的 (热加载可变)
+    scripts  []sdk.Receiver   // 子进程适配器 (编译缓存加载)
     mu       sync.RWMutex
 }
 
@@ -1011,7 +1040,7 @@ func (r *ReceiverRegistry) Deliver(ctx context.Context, resources []sdk.Resource
 
 ### 10.3 唯一内置 Receiver — Download (编译进 daemon)
 
-**仅 Download Receiver 编译进 daemon 二进制**。Telegram 接收器是随 daemon 分发的扩展脚本（见 10.5），通过 yaegi 加载。
+**仅 Download Receiver 编译进 daemon 二进制**。Telegram 接收器是随 daemon 分发的扩展适配器（见 10.5），通过子进程加载。
 
 Daemon 内置一个最低保证的 Receiver：将所有生成资源复制到 `~/Downloads/send2nlm/` 目录。
 
@@ -1033,7 +1062,7 @@ func (r *DownloadReceiver) Receive(ctx context.Context, resources []sdk.Resource
 
 ### 10.4 Receiver 配置 (统一 toggle)
 
-所有 Receiver（内置 + 脚本）的启用/禁用统一在 `~/.send2nlm/config.json` 中管理。
+所有 Receiver（内置 + 外部适配器）的启用/禁用统一在 `~/.send2nlm/config.json` 中管理。
 
 ```json
 {
@@ -1053,18 +1082,18 @@ func (r *DownloadReceiver) Receive(ctx context.Context, resources []sdk.Resource
 规则：
 - 每个 Receiver 由其 `Name()` 返回值作为配置 key
 - `enabled: false` → 跳过，不参与 Deliver
-- 内置 `download` receiver 默认 `enabled: true`；外部脚本默认 `enabled: true`
-- 脚本通过 `sdk.LoadConfig()` 读取自身配置段
+- 内置 `download` receiver 默认 `enabled: true`；外部适配器默认 `enabled: true`
+- 适配器通过 `sdk.LoadConfig()` 读取自身配置段
 
-### 10.5 Telegram 脚本 (随 daemon 分发)
+### 10.5 Telegram 适配器 (随 daemon 分发)
 
-Telegram 接收器作为 Go 脚本实现，源码在 `resources/receiver/telegram.go`，首次运行时复制到 `~/.send2nlm/receiver/telegram.go`。
+Telegram 接收器作为 Go 适配器实现，源码在 `resources/receiver/telegram.go`，首次运行时复制到 `~/.send2nlm/receiver/telegram.go`。
 
-#### 脚本源码
+#### 适配器源码
 
 ```go
 // ~/.send2nlm/receiver/telegram.go
-// 无需编译！daemon 通过 yaegi 直接解释执行
+// 无需手动编译！daemon 自动 go build 并缓存
 
 package receiver
 
@@ -1131,9 +1160,9 @@ var Receiver sdk.Receiver = &TelegramReceiver{}
 
 获取凭据：`@BotFather` 创建机器人获取 token；`@userinfobot` 获取 Chat ID。
 
-### 10.6 外部脚本开发
+### 10.6 外部适配器开发
 
-放入 `~/.send2nlm/receiver/*.go` 即生效，无需任何编译步骤。
+放入 `~/.send2nlm/receiver/*.go` 即生效，daemon 自动编译缓存，无需手动操作。
 
 ```go
 // ~/.send2nlm/receiver/my_receiver.go
@@ -1338,14 +1367,14 @@ SEND2NLM_DEV=1 go run . daemon
 - [ ] POST /notebooks: 创建笔记本
 - [ ] Chrome 扩展: Page 1 UI (笔记本列表 + 创建 + 刷新)
 
-### Phase 3: yaegi 脚本运行时 + URL → PDF
+### Phase 3: 适配器子系统 + URL → PDF
 - [ ] SDK 包: Producer 接口定义 (`sdk/producer.go`)
-- [ ] `scriptmgr/engine.go`: yaegi 解释器初始化、sdk 符号导出
-- [ ] `scriptmgr/watcher.go`: fsnotify 监听 producer/receiver 目录，自动热加载
+- [ ] SDK 包: 子进程通信协议 (`sdk/plugin_stdio.go`) — ServeProducer / ServeReceiver
+- [ ] `scriptmgr/external.go`: 外部适配器发现、编译缓存、通信协议
 - [ ] `scriptmgr/producer_registry.go`: 注册表 + for-loop Resolve
 - [ ] Default Producer: 内置 HTTP 抓取 + MD→PDF 转换器
-- [ ] Lark Producer 脚本 (`resources/producer/lark.go` → 首次复制到 `~/.send2nlm/producer/`)
-- [ ] 脚本开发指南 (`scripts/README.md`)
+- [ ] Lark Producer 适配器 (`resources/producer/lark.go` → 首次复制到 `~/.send2nlm/producer/`)
+- [ ] 适配器开发指南 (`scripts/README.md`)
 
 ### Phase 4: 核心 Pipeline
 - [ ] nlm 包: AddFileSource / GenerateAudio / GenerateSlides
@@ -1359,12 +1388,12 @@ SEND2NLM_DEV=1 go run . daemon
 - [ ] Resume 机制 (启动时恢复未完成 job)
 - [ ] Chrome 扩展: Page 3 (进度展示, 轮询 daemon)
 
-### Phase 6: Receiver 脚本 + Telegram + 发布
+### Phase 6: Receiver 适配器 + Telegram + 发布
 - [ ] SDK 包: Receiver 接口定义 (`sdk/receiver.go`)
 - [ ] SDK 配置读取: `sdk.LoadConfig()` + 只读 `Config`
 - [ ] `scriptmgr/receiver_registry.go`: 注册表 + 调用链 + config.json toggle
 - [ ] 内置 Download Receiver: 复制资源到 `~/Downloads/send2nlm/`
-- [ ] Telegram 脚本 (`resources/receiver/telegram.go` → 首次复制到 `~/.send2nlm/receiver/`)
+- [ ] Telegram 适配器 (`resources/receiver/telegram.go` → 首次复制到 `~/.send2nlm/receiver/`)
 - [ ] `~/.send2nlm/config.json` 配置管理 (receivers 段, enabled toggle)
 - [ ] i18n 完整覆盖
 - [ ] 错误处理完善、友好提示
@@ -1374,9 +1403,9 @@ SEND2NLM_DEV=1 go run . daemon
 
 ## 14. 开放问题
 
-1. **yaegi 解释器限制**: yaegi 不支持 cgo、unsafe、部分反射。Producer/Receiver 脚本应限制在纯 Go 标准库 + `os/exec` 范围内。脚本中需要非标准库时，由 daemon 的 `scriptmgr` 在解释器初始化时预先导入并导出。**开发 Phase 3 时列出支持的包清单**。
+1. **编译缓存一致性**: 适配器源码通过 SHA256 哈希识别版本。修改源码后 daemon 自动重新编译，但大文件（如内嵌大量资源）可能编译耗时较长。首版设定 `go build` 超时为 2 分钟。
 
-2. **热加载文件监听**: `fsnotify` 在 macOS/Linux 上行为良好，但需注意编辑器保存时的原子写入问题（vim 的 swap 文件、VSCode 的临时写入）。脚本加载失败时应保留旧版本运行，仅日志告警。
+2. **文件监听防抖**: `fsnotify` 在 macOS/Linux 上行为良好，但需注意编辑器保存时的原子写入问题（vim 的 swap 文件、VSCode 的临时写入）。采用 300ms 防抖窗口合并连续事件，避免重复编译。
 
 3. **notebooklm-py CLI 参数位置** (E2E 已发现并修复): `-n`/`--notebook` 参数必须放在子命令**之后**（如 `notebooklm source add -n <id>` 而非 `notebooklm -n <id> source add`）。
 
