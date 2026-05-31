@@ -9,23 +9,27 @@ import (
 
 	"send2nlm/core"
 	"send2nlm/nlm"
-	"send2nlm/producer"
-	"send2nlm/receiver"
+	"send2nlm/scriptmgr"
+	"send2nlm/sdk"
 	"send2nlm/store"
 )
 
 // Pipeline orchestrates the full URL → PDF → NotebookLM flow.
 type Pipeline struct {
-	cfg   core.RuntimeConfig
-	store *store.Store
-	queue chan *core.Job
+	cfg       core.RuntimeConfig
+	store     *store.Store
+	producers *scriptmgr.ProducerRegistry
+	receivers *scriptmgr.ReceiverRegistry
+	queue     chan *core.Job
 }
 
-func New(cfg core.RuntimeConfig, st *store.Store) *Pipeline {
+func New(cfg core.RuntimeConfig, st *store.Store, producers *scriptmgr.ProducerRegistry, receivers *scriptmgr.ReceiverRegistry) *Pipeline {
 	p := &Pipeline{
-		cfg:   cfg,
-		store: st,
-		queue: make(chan *core.Job, 16),
+		cfg:       cfg,
+		store:     st,
+		producers: producers,
+		receivers: receivers,
+		queue:     make(chan *core.Job, 16),
 	}
 	go p.loop()
 	return p
@@ -61,7 +65,7 @@ func (p *Pipeline) execute(job *core.Job) error {
 
 	// ── Step 1: PRODUCING ───────────────────────────────────────────────
 	_ = p.store.UpdateJobStatus(ctx, job.ID, core.StatusProducing)
-	pdfPath, err := producer.ExportURLToPDF(ctx, p.cfg, job.URL)
+	pdfPath, err := p.producers.Resolve(ctx, job.URL)
 	if err != nil {
 		return fail(err)
 	}
@@ -156,7 +160,9 @@ func (p *Pipeline) execute(job *core.Job) error {
 
 	// ── Step 6: RECEIVING ───────────────────────────────────────────────
 	_ = p.store.UpdateJobStatus(ctx, job.ID, core.StatusReceiving)
-	if err := receiver.Deliver(ctx, p.cfg, job, taskResults); err != nil {
+	resources := buildResources(job, taskResults)
+	errs := p.receivers.Deliver(ctx, resources)
+	for _, err := range errs {
 		log.Printf("[pipeline] receiver delivery warning: %v", err)
 	}
 
@@ -170,7 +176,28 @@ func (p *Pipeline) execute(job *core.Job) error {
 }
 
 // filepathInTemp builds a path under the temp directory.
-// Keep it inlined here to avoid importing path/filepath in every call site.
 func filepathInTemp(tmpDir, jobID string) string {
 	return tmpDir + "/" + jobID
+}
+
+// buildResources converts core.TaskResult map to []sdk.Resource for receiver delivery.
+func buildResources(job *core.Job, results map[string]core.TaskResult) []sdk.Resource {
+	var out []sdk.Resource
+	for taskType, tr := range results {
+		mime := "application/octet-stream"
+		switch taskType {
+		case "audio_overview":
+			mime = "audio/wav"
+		case "slide_deck":
+			mime = "application/pdf"
+		}
+		out = append(out, sdk.Resource{
+			TaskType:      taskType,
+			AssetPath:     tr.AssetPath,
+			MimeType:      mime,
+			NotebookTitle: job.NotebookTitle,
+			SourceURL:     job.URL,
+		})
+	}
+	return out
 }

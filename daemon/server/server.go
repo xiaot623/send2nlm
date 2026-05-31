@@ -5,6 +5,7 @@ import (
 
 	"send2nlm/core"
 	"send2nlm/pipeline"
+	"send2nlm/scriptmgr"
 	"send2nlm/store"
 )
 
@@ -15,12 +16,12 @@ type App struct {
 	pipeline core.JobExecutor
 }
 
-func NewApp(cfg core.RuntimeConfig, st *store.Store, version string) *App {
+func NewApp(cfg core.RuntimeConfig, st *store.Store, version string, producers *scriptmgr.ProducerRegistry, receivers *scriptmgr.ReceiverRegistry) *App {
 	return &App{
 		cfg:      cfg,
 		store:    st,
 		version:  version,
-		pipeline: pipeline.New(cfg, st),
+		pipeline: pipeline.New(cfg, st, producers, receivers),
 	}
 }
 

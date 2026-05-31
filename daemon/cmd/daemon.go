@@ -4,14 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"send2nlm/core"
+	"send2nlm/producer"
+	"send2nlm/receiver"
+	"send2nlm/resources"
+	"send2nlm/scriptmgr"
+	"send2nlm/sdk"
 	"send2nlm/server"
 	"send2nlm/store"
 )
@@ -38,7 +45,27 @@ func runDaemon(args []string) error {
 	}
 	defer db.Close()
 
-	app := server.NewApp(cfg, db, version)
+	// ── Plugin system bootstrap ───────────────────────────────────────
+	bootstrapPluginSystem(cfg)
+
+	// Init script engine
+	engine := scriptmgr.NewEngine()
+
+	// Producer registry
+	producerReg := scriptmgr.NewProducerRegistry()
+	producerReg.RegisterBuiltin(&producer.DefaultProducer{})
+	scriptmgr.LoadProducerDir(engine, producerReg, cfg.ProducerDir())
+	_ = scriptmgr.WatchProducerDir(engine, producerReg, cfg.ProducerDir())
+
+	// Receiver registry
+	receiverReg := scriptmgr.NewReceiverRegistry()
+	receiverReg.RegisterBuiltin(receiver.NewDownloadReceiver())
+	scriptmgr.LoadReceiverDir(engine, receiverReg, cfg.ReceiverDir())
+	_ = scriptmgr.WatchReceiverDir(engine, receiverReg, cfg.ReceiverDir())
+
+	log.Printf("[daemon] plugin system initialized")
+
+	app := server.NewApp(cfg, db, version, producerReg, receiverReg)
 
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", cfg.Port))
 	if err != nil {
@@ -82,4 +109,45 @@ func runDaemon(args []string) error {
 		}
 		return err
 	}
+}
+
+// bootstrapPluginSystem sets the SDK config directory and installs embedded
+// resource scripts (lark.go, telegram.go) into the user config dir on first run.
+func bootstrapPluginSystem(cfg core.RuntimeConfig) {
+	sdk.SetConfigDir(cfg.ConfigDir)
+
+	// Install embedded producer scripts
+	producerDir := cfg.ProducerDir()
+	if err := os.MkdirAll(producerDir, 0o755); err != nil {
+		log.Printf("[daemon] cannot create producer dir: %v", err)
+		return
+	}
+	installEmbedded(producerDir, "lark.go", "producer/lark.go")
+
+	// Install embedded receiver scripts
+	receiverDir := cfg.ReceiverDir()
+	if err := os.MkdirAll(receiverDir, 0o755); err != nil {
+		log.Printf("[daemon] cannot create receiver dir: %v", err)
+		return
+	}
+	installEmbedded(receiverDir, "telegram.go", "receiver/telegram.go")
+}
+
+// installEmbedded copies an embedded resource file to the target directory
+// if it doesn't already exist.
+func installEmbedded(dir, filename, embedPath string) {
+	dst := filepath.Join(dir, filename)
+	if _, err := os.Stat(dst); err == nil {
+		return // already exists, don't overwrite user modifications
+	}
+	data, err := resources.Files.ReadFile(embedPath)
+	if err != nil {
+		log.Printf("[daemon] embedded resource %s not found: %v", embedPath, err)
+		return
+	}
+	if err := os.WriteFile(dst, data, 0o644); err != nil {
+		log.Printf("[daemon] cannot install %s: %v", filename, err)
+		return
+	}
+	log.Printf("[daemon] installed %s → %s", filename, dst)
 }
