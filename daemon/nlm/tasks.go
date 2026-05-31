@@ -103,19 +103,24 @@ func PollArtifact(ctx context.Context, notebookID, taskID string) (*PollResponse
 	return &resp, nil
 }
 
-// PollUntilReady blocks until all tasks are completed, failed, or the deadline is exceeded.
-// It polls each task at the given interval.
 func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*GenTaskResponse, timeout, interval time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	consecutiveErrors := 0
+	const maxErrors = 3
+
 	for time.Now().Before(deadline) {
 		allReady := true
+		var loopErr error
+
 		for taskType, task := range tasks {
 			state, err := PollArtifact(ctx, notebookID, task.TaskID)
 			if err != nil {
-				return fmt.Errorf("poll %s: %w", taskType, err)
+				loopErr = fmt.Errorf("poll %s: %w", taskType, err)
+				allReady = false
+				break // Stop checking other tasks this tick, retry next tick
 			}
 			// Update the task status for the caller.
 			task.Status = state.Status
@@ -129,9 +134,19 @@ func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*Ge
 				allReady = false
 			}
 		}
-		if allReady {
-			return nil
+
+		if loopErr != nil {
+			consecutiveErrors++
+			if consecutiveErrors >= maxErrors {
+				return fmt.Errorf("failed to poll after %d attempts: %w", maxErrors, loopErr)
+			}
+		} else {
+			consecutiveErrors = 0
+			if allReady {
+				return nil
+			}
 		}
+
 		<-ticker.C
 	}
 	return fmt.Errorf("timed out waiting for artifact completion after %v", timeout)

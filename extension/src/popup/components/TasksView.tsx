@@ -47,8 +47,18 @@ export function TasksView({ setStatus }: Props) {
         return <span className="status-badge success">{t('statusCompleted') || 'Completed'}</span>;
       case 'failed':
         return <span className="status-badge error">{t('statusFailed') || 'Failed'}</span>;
+      case 'tasking':
+        return <span className="status-badge pending">{t('statusTasking') || 'Creating Tasks'}</span>;
+      case 'polling':
+        return <span className="status-badge pending">{t('statusPolling') || 'Generating'}</span>;
+      case 'downloading':
+        return <span className="status-badge pending">{t('statusDownloading') || 'Downloading'}</span>;
+      case 'receiving':
+        return <span className="status-badge pending">{t('statusReceiving') || 'Receiving'}</span>;
+      case 'pending':
+        return <span className="status-badge pending">{t('statusPending') || 'Pending'}</span>;
       default:
-        return <span className="status-badge pending">{t('statusPending') || status}</span>;
+        return <span className="status-badge pending">{status}</span>;
     }
   };
 
