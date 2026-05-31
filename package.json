@@ -1,0 +1,29 @@
+{
+  "name": "send2nlm",
+  "version": "0.1.0",
+  "description": "Send to NLM",
+  "main": "index.js",
+  "bin": {
+    "send2nlm": "bin/send2nlm"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "pre_release": "npm version prerelease --preid=rc -m \"chore: pre-release v%s\" && git push origin HEAD --follow-tags",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
+    "build": "npm run build:daemon && npm run build:ext",
+    "build:daemon": "cd daemon && mkdir -p ../bin && go build -o ../bin/send2nlm .",
+    "build:ext": "cd extension && npm run build",
+    "check": "npm run check:daemon && npm run check:ext",
+    "check:daemon": "cd daemon && go vet ./... && go test ./...",
+    "check:ext": "cd extension && npx tsc --noEmit",
+    "dev": "cd daemon && go run . daemon --dev"
+  },
+  "files": [
+    "bin",
+    "scripts/install.js"
+  ],
+  "author": "xiaot623",
+  "license": "MIT"
+}
