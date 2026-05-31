@@ -155,9 +155,16 @@ export default function App() {
         {statusMsg?.text}
       </div>
 
-      <div className="pages-shell">
-        {currentPage === 0 && (
-          <div className="page" id="page-notebooks" style={{ height: '480px' }}>
+      <div className="pages-shell relative overflow-hidden" style={{ width: '360px', height: '480px' }}>
+        <div 
+          className="pages flex h-full transition-transform duration-300"
+          style={{ 
+            width: '1800px', // 5 pages * 360px
+            transform: `translateX(-${currentPage * 360}px)`,
+            transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
+        >
+          <div className="page shrink-0 w-[360px] h-full overflow-y-auto" id="page-notebooks">
             <NotebooksView
               notebooks={notebooks}
               setNotebooks={setNotebooks}
@@ -165,19 +172,15 @@ export default function App() {
               setStatus={setStatus}
             />
           </div>
-        )}
 
-        {currentPage === 1 && (
-          <div className="page" id="page-uploading">
+          <div className="page shrink-0 w-[360px] h-full overflow-y-auto" id="page-uploading">
             <UploadingView
               onRetry={() => handleNotebookSelection(selectedNotebook, currentTab)}
               hasError={!!(statusMsg && statusMsg.isError)}
             />
           </div>
-        )}
 
-        {currentPage === 2 && (
-          <div className="page" id="page-send">
+          <div className="page shrink-0 w-[360px] h-full overflow-y-auto" id="page-send">
             <SendView
               notebook={selectedNotebook}
               currentTab={currentTab}
@@ -194,23 +197,19 @@ export default function App() {
               }}
             />
           </div>
-        )}
 
-        {currentPage === 3 && (
-          <div className="page" id="page-result">
+          <div className="page shrink-0 w-[360px] h-full overflow-y-auto" id="page-result">
             <ResultView
               jobId={currentJobId}
               notebook={selectedNotebook}
               setStatus={setStatus}
             />
           </div>
-        )}
 
-        {currentPage === 4 && (
-          <div className="page" id="page-tasks" style={{ height: '480px' }}>
+          <div className="page shrink-0 w-[360px] h-full overflow-y-auto" id="page-tasks">
             <TasksView setStatus={setStatus} />
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
