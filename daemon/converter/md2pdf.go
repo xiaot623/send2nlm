@@ -8,50 +8,62 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/yuin/goldmark"
 )
 
 // MD2PDF converts markdown text to a PDF file.
-// title is used for the HTML <title> and output filename.
-// outputDir is where the generated PDF is saved.
-// Uses goldmark for MD→HTML and wkhtmltopdf for HTML→PDF.
+// Prefer MDFile2PDF when the markdown references local assets such as images.
 func MD2PDF(markdown, title, outputDir string) (string, error) {
-	// 1. Render markdown to HTML via goldmark
-	var htmlBuf bytes.Buffer
-	if err := goldmark.Convert([]byte(markdown), &htmlBuf); err != nil {
-		return "", fmt.Errorf("goldmark render: %w", err)
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return "", fmt.Errorf("mkdir output dir: %w", err)
 	}
 
-	// 2. Wrap in a minimal HTML document with readable styling
-	doc := wrapHTML(title, htmlBuf.String())
-
-	// 3. Write temporary HTML file
-	tmpHTML := filepath.Join(outputDir, "_temp.html")
-	if err := os.WriteFile(tmpHTML, []byte(doc), 0o644); err != nil {
-		return "", fmt.Errorf("write temp html: %w", err)
+	mdPath := filepath.Join(outputDir, "_article.md")
+	if err := os.WriteFile(mdPath, []byte(markdown), 0o644); err != nil {
+		return "", fmt.Errorf("write markdown: %w", err)
 	}
-	defer os.Remove(tmpHTML)
+	return MDFile2PDF(mdPath, title, outputDir)
+}
 
-	// 4. Convert HTML to PDF via wkhtmltopdf
+// MDFile2PDF converts a Markdown file to a PDF file via pandoc.
+// Relative image links are resolved from the Markdown file's directory.
+func MDFile2PDF(markdownPath, title, outputDir string) (string, error) {
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return "", fmt.Errorf("mkdir output dir: %w", err)
+	}
+	if _, err := os.Stat(markdownPath); err != nil {
+		return "", fmt.Errorf("markdown not found: %w", err)
+	}
+
 	slug := slugify(title)
 	if slug == "" {
 		slug = time.Now().UTC().Format("20060102-150405")
 	}
 	pdfPath := filepath.Join(outputDir, slug+".pdf")
+	markdownDir := filepath.Dir(markdownPath)
 
-	if err := exec.Command("wkhtmltopdf",
-		"--quiet",
-		"--enable-local-file-access",
-		"--page-size", "A4",
-		"--margin-top", "15mm",
-		"--margin-bottom", "15mm",
-		"--margin-left", "15mm",
-		"--margin-right", "15mm",
-		tmpHTML,
-		pdfPath,
-	).Run(); err != nil {
-		return "", fmt.Errorf("wkhtmltopdf failed (is it installed? brew install wkhtmltopdf): %w", err)
+	cmd := exec.Command(
+		"pandoc",
+		markdownPath,
+		"--from", "gfm",
+		"--standalone",
+		"--pdf-engine", "xelatex",
+		"--resource-path", markdownDir,
+		"--metadata", "title="+title,
+		"-V", "geometry:margin=15mm",
+		"-V", "colorlinks=true",
+		"-V", "urlcolor=blue",
+	)
+	cmd.Args = append(cmd.Args, pandocFontArgs()...)
+	cmd.Args = append(cmd.Args, "-o", pdfPath)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			return "", fmt.Errorf("pandoc failed (install pandoc and xelatex): %w", err)
+		}
+		return "", fmt.Errorf("pandoc failed (install pandoc and xelatex): %w: %s", err, msg)
 	}
 
 	if _, err := os.Stat(pdfPath); err != nil {
@@ -60,41 +72,31 @@ func MD2PDF(markdown, title, outputDir string) (string, error) {
 	return pdfPath, nil
 }
 
-// wrapHTML embeds rendered markdown HTML into a minimal document.
-func wrapHTML(title, body string) string {
-	return fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>%s</title>
-<style>
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 12pt;
-    line-height: 1.7;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    color: #1a1a1a;
-  }
-  h1 { font-size: 1.6em; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
-  h2 { font-size: 1.3em; margin-top: 1.5em; }
-  h3 { font-size: 1.1em; }
-  pre { background: #f5f5f5; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 0.9em; }
-  code { background: #f5f5f5; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
-  pre code { padding: 0; }
-  blockquote { border-left: 3px solid #ddd; margin-left: 0; padding-left: 15px; color: #555; }
-  img { max-width: 100%%; }
-  table { border-collapse: collapse; width: 100%%; }
-  th, td { border: 1px solid #ddd; padding: 6px 12px; text-align: left; }
-  a { color: #0366d6; }
-</style>
-</head>
-<body>
-%s
-</body>
-</html>`, escapeHTML(title), body)
+func pandocFontArgs() []string {
+	args := make([]string, 0, 8)
+	if font := firstAvailableFont("PingFang SC", "Noto Sans CJK SC", "Arial Unicode MS", "Songti SC"); font != "" {
+		args = append(args, "-V", "CJKmainfont="+font)
+	}
+	if font := firstAvailableFont("Menlo", "DejaVu Sans Mono", "Arial Unicode MS"); font != "" {
+		args = append(args, "-V", "monofont="+font)
+	}
+	return args
+}
+
+func firstAvailableFont(candidates ...string) string {
+	if _, err := exec.LookPath("fc-match"); err != nil {
+		return ""
+	}
+	for _, candidate := range candidates {
+		out, err := exec.Command("fc-match", candidate).Output()
+		if err != nil {
+			continue
+		}
+		if strings.Contains(strings.ToLower(string(out)), strings.ToLower(candidate)) {
+			return candidate
+		}
+	}
+	return ""
 }
 
 // slugify creates a filesystem-safe name from a title.
@@ -113,13 +115,5 @@ func slugify(title string) string {
 	if len(s) > 60 {
 		s = s[:60]
 	}
-	return s
-}
-
-func escapeHTML(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
 	return s
 }

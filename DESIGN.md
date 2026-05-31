@@ -33,7 +33,7 @@ Send2NLM 是一个 Chrome 浏览器扩展 (MV3)，将用户当前浏览的网页
 | `notebooklm download slide-deck -n <id> <path> --latest --force` | 下载完成的幻灯片 |
 | `lark-cli drive +export --file-extension pdf` | 飞书文档导出 PDF |
 
-> **注**: Default Producer 使用内置 HTTP 抓取 + MD→PDF 转换器，不依赖外部网页抓取工具。
+> **注**: Default Producer 使用 `opencli web read` 抓取 Markdown 与配图，再通过 `pandoc` 将 Markdown 转换为 PDF。
 
 ---
 
@@ -98,7 +98,7 @@ send2nlm/
 │   ├── receiver/
 │   │   └── builtin.go            # 内置 Download Receiver (复制到 ~/Downloads/send2nlm/)
 │   ├── converter/
-│   │   └── md2pdf.go             # Markdown → PDF 转换 (goldmark + wkhtmltopdf/chromedp)
+│   │   └── md2pdf.go             # Markdown → PDF 转换 (pandoc + xelatex)
 │   └── resources/                # go:embed 内嵌资源 (首次使用时复制到 ~/.send2nlm/)
 │       ├── producer/
 │       │   └── lark.go           # Lark Producer 扩展适配器
@@ -711,12 +711,12 @@ type DefaultProducer struct{}
 func (p *DefaultProducer) Name() string  { return "default" }
 func (p *DefaultProducer) Match(url string) bool { return true }
 func (p *DefaultProducer) Produce(ctx context.Context, url string) (string, error) {
-    // 1. HTTP GET 抓取网页 HTML → 提取正文为 Markdown
-    //    → 捕获 stdout 获得 Markdown
-    // 2. converter.MD2PDF(markdown, extractTitle(url))
-    //    → goldmark 渲染 MD → HTML
-    //    → 嵌入最小化 CSS
-    //    → wkhtmltopdf / chromedp 将 HTML 转为 PDF
+    // 1. opencli web read --download-images true -f json
+    //    → 将 Markdown 与配图保存到输出目录，并从 JSON 的 saved 字段取得 .md 路径
+    // 2. converter.MDFile2PDF(savedMarkdown, title, outputDir)
+    //    → pandoc 读取 Markdown 文件
+    //    → --resource-path 指向 Markdown 所在目录以解析相对图片路径
+    //    → xelatex 将 Markdown 转为 PDF
     //    → 输出到 TempDir/<slug>.pdf
     // 3. 返回 PDF 路径
 }
@@ -726,10 +726,9 @@ func (p *DefaultProducer) Produce(ctx context.Context, url string) (string, erro
 
 | 方案 | 优点 | 缺点 | 选用 |
 |------|------|------|------|
-| wkhtmltopdf (exec) | 成熟稳定、排版好 | 需要系统安装 | ✅ 首选 |
-| chromedp (Go lib) | 无外部依赖、Go 原生 | 稍重，需 Chrome | ✅ 备选 |
+| pandoc + xelatex (exec) | 原生支持 Markdown、相对图片、表格和代码块；PDF 输出稳定 | 需要系统安装 pandoc 与 TeX 引擎 | ✅ 首选 |
 
-两者都不可用时直接失败，并向 UI 返回可操作错误（例如提示安装 Chrome 或 wkhtmltopdf）。0.0.1 不使用 `add-source --url` 或 `add-source --content` 降级，确保上传到 NotebookLM 的内容始终是 PDF。
+`pandoc` 或 `xelatex` 不可用时直接失败，并向 UI 返回可操作错误。0.0.1 不使用 `add-source --url` 或 `add-source --content` 降级，确保上传到 NotebookLM 的内容始终是 PDF。
 
 ### 7.6 资源文件首次安装
 

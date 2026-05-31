@@ -1,11 +1,12 @@
 package producer
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -16,8 +17,8 @@ import (
 )
 
 // DefaultProducer is the universal fallback producer.
-// It fetches a web page via HTTP, converts the HTML to Markdown,
-// and renders the Markdown as a PDF via goldmark + wkhtmltopdf.
+// It fetches a web page as Markdown plus images via opencli and renders the
+// saved Markdown file as a PDF via pandoc.
 // This is the only producer compiled into the daemon binary.
 type DefaultProducer struct{}
 
@@ -29,32 +30,30 @@ func (p *DefaultProducer) Name() string { return "default" }
 func (p *DefaultProducer) Match(url string) bool { return true }
 
 func (p *DefaultProducer) Produce(ctx context.Context, url string) (string, error) {
-	// 1. HTTP GET the page
-	html, err := fetchPage(ctx, url)
-	if err != nil {
-		return "", fmt.Errorf("default producer fetch: %w", err)
-	}
-
-	// 2. Extract title
-	title := extractTitle(html, url)
-
-	// 3. Convert HTML to Markdown
-	markdown, err := converter.HTMLToMarkdown(html)
-	if err != nil {
-		return "", fmt.Errorf("default producer html→md: %w", err)
-	}
-	if markdown == "" {
-		return "", fmt.Errorf("default producer: no content extracted from %s", url)
-	}
-
-	// 4. Create output directory
+	// 1. Create output directory. opencli stores downloaded article images here.
 	outputDir := filepath.Join(os.TempDir(), "send2nlm", time.Now().UTC().Format("20060102-150405"))
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return "", fmt.Errorf("default producer mkdir: %w", err)
 	}
 
-	// 5. Convert Markdown to PDF
-	pdfPath, err := converter.MD2PDF(markdown, title, outputDir)
+	// 2. Fetch rendered page content as Markdown and image assets through opencli.
+	article, err := fetchArticle(ctx, url, outputDir)
+	if err != nil {
+		return "", fmt.Errorf("default producer opencli fetch: %w", err)
+	}
+
+	// 3. Extract title.
+	title := strings.TrimSpace(article.Title)
+	if title == "" {
+		markdown, err := os.ReadFile(article.Saved)
+		if err != nil {
+			return "", fmt.Errorf("default producer read markdown: %w", err)
+		}
+		title = extractTitle(string(markdown), url)
+	}
+
+	// 4. Convert Markdown file to PDF.
+	pdfPath, err := converter.MDFile2PDF(article.Saved, title, outputDir)
 	if err != nil {
 		return "", fmt.Errorf("default producer md→pdf: %w", err)
 	}
@@ -62,48 +61,67 @@ func (p *DefaultProducer) Produce(ctx context.Context, url string) (string, erro
 	return pdfPath, nil
 }
 
-// fetchPage performs an HTTP GET and returns the response body as a string.
-func fetchPage(ctx context.Context, url string) (string, error) {
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 5 {
-				return fmt.Errorf("too many redirects")
-			}
-			return nil
-		},
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Send2NLM/1.0; +https://github.com/send2nlm)")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-
-	// Limit response to 10 MB
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 10*1024*1024))
-	if err != nil {
-		return "", err
-	}
-
-	return string(body), nil
+type opencliArticle struct {
+	Title  string `json:"title"`
+	Status string `json:"status"`
+	Saved  string `json:"saved"`
 }
 
-var titleRe = regexp.MustCompile(`(?is)<title[^>]*>(.*?)</title>`)
+// fetchArticle asks opencli to render the page and save article Markdown/assets.
+func fetchArticle(ctx context.Context, url, outputDir string) (opencliArticle, error) {
+	cmd := exec.CommandContext(ctx,
+		"opencli",
+		"web",
+		"read",
+		"--url", url,
+		"--output", outputDir,
+		"--download-images", "true",
+		"--wait", "3",
+		"-f", "json",
+	)
 
-// extractTitle pulls the page title from HTML, falling back to the URL path.
-func extractTitle(html, url string) string {
-	if m := titleRe.FindStringSubmatch(html); len(m) >= 2 {
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			return opencliArticle{}, err
+		}
+		return opencliArticle{}, fmt.Errorf("%w: %s", err, msg)
+	}
+
+	var articles []opencliArticle
+	if err := json.Unmarshal(stdout.Bytes(), &articles); err != nil {
+		return opencliArticle{}, fmt.Errorf("parse opencli json: %w", err)
+	}
+	if len(articles) == 0 {
+		return opencliArticle{}, fmt.Errorf("no article returned by opencli")
+	}
+
+	article := articles[0]
+	if article.Status != "" && article.Status != "success" {
+		return opencliArticle{}, fmt.Errorf("opencli returned status %q", article.Status)
+	}
+	if article.Saved == "" {
+		return opencliArticle{}, fmt.Errorf("opencli did not return saved markdown path")
+	}
+	if !filepath.IsAbs(article.Saved) {
+		article.Saved = filepath.Join(outputDir, article.Saved)
+	}
+	if _, err := os.Stat(article.Saved); err != nil {
+		return opencliArticle{}, fmt.Errorf("opencli markdown not found: %w", err)
+	}
+
+	return article, nil
+}
+
+var markdownTitleRe = regexp.MustCompile(`(?m)^#\s+(.+?)\s*$`)
+
+// extractTitle pulls the first Markdown H1, falling back to the URL path.
+func extractTitle(markdown, url string) string {
+	if m := markdownTitleRe.FindStringSubmatch(markdown); len(m) >= 2 {
 		t := strings.TrimSpace(m[1])
 		if t != "" {
 			return t
