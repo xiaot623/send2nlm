@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"send2nlm/core"
 )
@@ -26,5 +25,14 @@ func runStop(args []string) error {
 	if err != nil {
 		return err
 	}
-	return syscall.Kill(pid, syscall.SIGTERM)
+
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return err
+	}
+
+	if err := proc.Signal(os.Interrupt); err != nil {
+		return proc.Kill()
+	}
+	return nil
 }

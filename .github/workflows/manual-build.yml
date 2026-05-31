@@ -1,0 +1,50 @@
+name: Manual Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (No Release)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23' # Matches your daemon go.mod version
+
+      - name: Build Go binaries
+        run: |
+          mkdir -p bin
+          cd daemon
+          # Linux
+          GOOS=linux GOARCH=amd64 go build -o ../bin/send2nlm-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -o ../bin/send2nlm-linux-arm64 .
+          # macOS
+          GOOS=darwin GOARCH=amd64 go build -o ../bin/send2nlm-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -o ../bin/send2nlm-darwin-arm64 .
+          # Windows
+          GOOS=windows GOARCH=amd64 go build -o ../bin/send2nlm-windows-amd64.exe .
+          GOOS=windows GOARCH=arm64 go build -o ../bin/send2nlm-windows-arm64.exe .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build and Pack Extension
+        run: |
+          cd extension
+          npm install
+          cd ..
+          npm run build:ext
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: bin/*
+          retention-days: 7
