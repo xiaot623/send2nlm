@@ -20,21 +20,33 @@ jobs:
 
       - name: Build Go binaries
         run: |
-          mkdir -p dist
+          mkdir -p bin
           cd daemon
           # Linux
-          GOOS=linux GOARCH=amd64 go build -o ../dist/send2nlm-linux-amd64 .
-          GOOS=linux GOARCH=arm64 go build -o ../dist/send2nlm-linux-arm64 .
+          GOOS=linux GOARCH=amd64 go build -o ../bin/send2nlm-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -o ../bin/send2nlm-linux-arm64 .
           # macOS
-          GOOS=darwin GOARCH=amd64 go build -o ../dist/send2nlm-darwin-amd64 .
-          GOOS=darwin GOARCH=arm64 go build -o ../dist/send2nlm-darwin-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -o ../bin/send2nlm-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -o ../bin/send2nlm-darwin-arm64 .
           # Windows
-          GOOS=windows GOARCH=amd64 go build -o ../dist/send2nlm-windows-amd64.exe .
-          GOOS=windows GOARCH=arm64 go build -o ../dist/send2nlm-windows-arm64.exe .
+          GOOS=windows GOARCH=amd64 go build -o ../bin/send2nlm-windows-amd64.exe .
+          GOOS=windows GOARCH=arm64 go build -o ../bin/send2nlm-windows-arm64.exe .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build and Pack Extension
+        run: |
+          cd extension
+          npm install
+          cd ..
+          npm run build:ext
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: bin/*
           generate_release_notes: true
           prerelease: ${{ contains(github.ref, 'rc') }}

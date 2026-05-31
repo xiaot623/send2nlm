@@ -33,3 +33,4 @@ node_modules/
 
 # Extension build artifacts
 extension/dist/
+extension/build_ext/

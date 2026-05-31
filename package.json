@@ -14,7 +14,7 @@
     "release:major": "node scripts/release.js major",
     "build": "npm run build:daemon && npm run build:ext",
     "build:daemon": "cd daemon && mkdir -p ../bin && go build -o ../bin/send2nlm .",
-    "build:ext": "cd extension && npm run build",
+    "build:ext": "cd extension && npm run build && cd .. && node scripts/pack_ext.js",
     "check": "npm run check:daemon && npm run check:ext",
     "check:daemon": "cd daemon && go vet ./... && go test ./...",
     "check:ext": "cd extension && npx tsc --noEmit",
