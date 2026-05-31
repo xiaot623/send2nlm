@@ -123,6 +123,7 @@ func bootstrapPluginSystem(cfg core.RuntimeConfig) {
 		return
 	}
 	installEmbedded(producerDir, "lark.go", "producer/lark.go")
+	installEmbedded(producerDir, "weixin.go", "producer/weixin/weixin.go")
 
 	// Install embedded receiver scripts
 	receiverDir := cfg.ReceiverDir()

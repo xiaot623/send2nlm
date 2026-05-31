@@ -92,6 +92,9 @@ func LoadAppConfig(cfg RuntimeConfig) (AppConfig, error) {
 	if _, ok := app.Producers["lark"]; !ok {
 		app.Producers["lark"] = ProducerConfig{Enabled: true, CLI: "lark-cli"}
 	}
+	if _, ok := app.Producers["weixin"]; !ok {
+		app.Producers["weixin"] = ProducerConfig{Enabled: true, CLI: "opencli weixin"}
+	}
 	if app.Receivers == nil {
 		app.Receivers = map[string]json.RawMessage{}
 	}
@@ -128,7 +131,8 @@ func mustMarshalJSON(v any) json.RawMessage {
 func defaultAppConfig() AppConfig {
 	return AppConfig{
 		Producers: map[string]ProducerConfig{
-			"lark": {Enabled: true, CLI: "lark-cli"},
+			"lark":   {Enabled: true, CLI: "lark-cli"},
+			"weixin": {Enabled: true, CLI: "opencli weixin"},
 		},
 		Receivers: map[string]json.RawMessage{
 			"download": mustMarshalJSON(ReceiverConfig{Enabled: true}),
