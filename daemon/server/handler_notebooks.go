@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"send2nlm/core"
@@ -80,6 +81,21 @@ func (a *App) handleCreateNotebook(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, notebook)
 }
 
+func (a *App) handleListUploadedNotebooks(w http.ResponseWriter, r *http.Request) {
+	rawURL := strings.TrimSpace(r.URL.Query().Get("url"))
+	if rawURL == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "url is required"})
+		return
+	}
+
+	notebooks, err := a.store.ListUploadedNotebooks(r.Context(), rawURL)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"notebooks": notebooks})
+}
+
 func cachedAtString(t *time.Time) string {
 	if t == nil {
 		return ""
@@ -129,7 +145,7 @@ func (a *App) handleUploadResource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	
+
 	// Step 1: URL -> PDF
 	pdfPath, err := a.producers.Resolve(ctx, req.URL)
 	if err != nil {
@@ -141,6 +157,10 @@ func (a *App) handleUploadResource(w http.ResponseWriter, r *http.Request) {
 	sourceID, err := nlm.AddFileSource(ctx, notebookID, pdfPath)
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	if err := a.store.RecordUploadedSource(ctx, req.URL, notebookID, sourceID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 

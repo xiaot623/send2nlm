@@ -5,6 +5,11 @@ export interface Notebook {
   url?: string;
 }
 
+export interface UploadedNotebook extends Notebook {
+  source_ids: string[];
+  last_used?: string;
+}
+
 export interface Source {
   id: string;
   title: string;
@@ -37,6 +42,7 @@ export interface AppState {
   currentJobId: string | null;
   lastUrl: string;
   selectedSourceIds?: string[];
+  uploadedNotebooks?: UploadedNotebook[];
   tasks?: {
     audio_overview: boolean;
     slide_deck: boolean;

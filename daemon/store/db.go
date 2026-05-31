@@ -52,12 +52,22 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_notebooks_cached_at ON notebooks(cached_at);
+CREATE TABLE IF NOT EXISTS uploaded_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT NOT NULL,
+    notebook_id TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(url, notebook_id, source_id)
+);
+CREATE INDEX IF NOT EXISTS idx_uploaded_sources_url ON uploaded_sources(url);
 `
 	_, err := s.db.Exec(schema)
-	
+
 	// Migration: add source_ids to existing tables
 	_ = s.db.QueryRow("SELECT source_ids FROM jobs LIMIT 1").Scan(new(any)) // Check if it exists
-	s.db.Exec("ALTER TABLE jobs ADD COLUMN source_ids TEXT DEFAULT '[]'") // Ignore error if exists
+	s.db.Exec("ALTER TABLE jobs ADD COLUMN source_ids TEXT DEFAULT '[]'")   // Ignore error if exists
 
 	return err
 }

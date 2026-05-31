@@ -28,6 +28,12 @@ type Notebook struct {
 	CachedAt  time.Time `json:"cached_at,omitempty"`
 }
 
+type UploadedNotebook struct {
+	Notebook
+	SourceIDs []string `json:"source_ids"`
+	LastUsed  string   `json:"last_used"`
+}
+
 type TaskResult struct {
 	TaskID      string `json:"task_id"`
 	Status      string `json:"status"`

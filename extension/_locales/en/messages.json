@@ -4,6 +4,7 @@
   "createNotebook": { "message": "Create Notebook" },
   "refreshList": { "message": "Refresh" },
   "sendButton": { "message": "Send" },
+  "uploadAgainButton": { "message": "Upload again" },
   "backButton": { "message": "Back" },
   "audioOverview": { "message": "Audio Overview" },
   "slideDeck": { "message": "Slide Deck" },

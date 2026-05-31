@@ -35,10 +35,12 @@ export function SendView({ notebook, currentTab, sources, newSourceId, selectedS
     setIsSending(true);
     if (!notebook) {
       setStatus('Notebook is missing.', true);
+      setIsSending(false);
       return;
     }
     if (selectedSourceIds.size === 0) {
       setStatus('Please select at least one source.', true);
+      setIsSending(false);
       return;
     }
 

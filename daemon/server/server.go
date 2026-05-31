@@ -10,8 +10,8 @@ import (
 )
 
 type App struct {
-	cfg      core.RuntimeConfig
-	store    *store.Store
+	cfg       core.RuntimeConfig
+	store     *store.Store
 	version   string
 	pipeline  core.JobExecutor
 	producers *scriptmgr.ProducerRegistry
@@ -32,6 +32,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("GET /health", a.handleHealth)
 	mux.HandleFunc("GET /notebooks", a.handleListNotebooks)
 	mux.HandleFunc("POST /notebooks", a.handleCreateNotebook)
+	mux.HandleFunc("GET /notebooks/uploaded", a.handleListUploadedNotebooks)
 	mux.HandleFunc("POST /notebooks/{id}/upload", a.handleUploadResource)
 	mux.HandleFunc("GET /notebooks/{id}/sources", a.handleListSources)
 	mux.HandleFunc("GET /jobs", a.handleListJobs)

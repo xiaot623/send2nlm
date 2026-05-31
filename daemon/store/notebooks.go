@@ -96,6 +96,79 @@ func (s *Store) NotebookTitle(ctx context.Context, notebookID string) (string, e
 	return title, err
 }
 
+func (s *Store) ListUploadedNotebooks(ctx context.Context, rawURL string) ([]core.UploadedNotebook, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT
+	u.notebook_id,
+	COALESCE(NULLIF(n.title, ''), u.notebook_id) AS title,
+	COALESCE(n.is_owner, 1) AS is_owner,
+	COALESCE(n.created_at, '') AS created_at,
+	COALESCE(n.url, '') AS notebook_url,
+	COALESCE(n.emoji, '📒') AS emoji,
+	COALESCE(n.cached_at, '') AS cached_at,
+	u.source_id,
+	u.updated_at AS last_used
+FROM uploaded_sources u
+LEFT JOIN notebooks n ON n.id = u.notebook_id
+WHERE u.url = ?
+ORDER BY u.updated_at DESC`, rawURL)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notebooks []core.UploadedNotebook
+	byID := map[string]int{}
+	sourceSeen := map[string]map[string]bool{}
+	for rows.Next() {
+		var n core.UploadedNotebook
+		var isOwner int
+		var cachedAt string
+		var sourceID string
+		if err := rows.Scan(
+			&n.ID,
+			&n.Title,
+			&isOwner,
+			&n.CreatedAt,
+			&n.URL,
+			&n.Emoji,
+			&cachedAt,
+			&sourceID,
+			&n.LastUsed,
+		); err != nil {
+			return nil, err
+		}
+		n.IsOwner = isOwner == 1
+		if t, err := time.Parse(time.RFC3339, cachedAt); err == nil {
+			n.CachedAt = t
+		}
+
+		idx, ok := byID[n.ID]
+		if !ok {
+			n.SourceIDs = []string{}
+			notebooks = append(notebooks, n)
+			idx = len(notebooks) - 1
+			byID[n.ID] = idx
+			sourceSeen[n.ID] = map[string]bool{}
+		}
+		if sourceID != "" && !sourceSeen[n.ID][sourceID] {
+			notebooks[idx].SourceIDs = append(notebooks[idx].SourceIDs, sourceID)
+			sourceSeen[n.ID][sourceID] = true
+		}
+	}
+	return notebooks, rows.Err()
+}
+
+func (s *Store) RecordUploadedSource(ctx context.Context, rawURL, notebookID, sourceID string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO uploaded_sources(url, notebook_id, source_id, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(url, notebook_id, source_id) DO UPDATE SET updated_at=excluded.updated_at`,
+		rawURL, notebookID, sourceID, now, now)
+	return err
+}
+
 func boolToInt(v bool) int {
 	if v {
 		return 1

@@ -66,6 +66,11 @@ export async function createNotebook(body: { title: string; emoji?: string }): P
   });
 }
 
+export async function listUploadedNotebooks(url: string): Promise<any> {
+  const port = await resolvePort();
+  return request(port, `/notebooks/uploaded?url=${encodeURIComponent(url)}`);
+}
+
 export async function createJob(body: { notebook_id: string; url: string; tasks: string[]; source_ids: string[] }): Promise<any> {
   const port = await resolvePort();
   return request(port, "/jobs", {

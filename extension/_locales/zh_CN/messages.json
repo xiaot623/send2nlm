@@ -4,6 +4,7 @@
   "createNotebook": { "message": "新建笔记本" },
   "refreshList": { "message": "刷新" },
   "sendButton": { "message": "发送" },
+  "uploadAgainButton": { "message": "返回重新上传" },
   "backButton": { "message": "返回" },
   "audioOverview": { "message": "音频概览" },
   "slideDeck": { "message": "幻灯片" },
