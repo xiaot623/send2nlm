@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { Notebook } from '../types';
 import { listNotebooks, createNotebook } from '../../shared/daemon-client';
 import { t } from '../i18n';
@@ -43,10 +42,9 @@ export function NotebooksView({ notebooks, setNotebooks, onSelect, setStatus }: 
 
     setStatus('Creating notebook…');
     try {
-      const notebook = await createNotebook({ title: title.trim() });
+      await createNotebook({ title: title.trim() });
       setTitle('');
-      setNotebooks([notebook, ...notebooks]);
-      setStatus('Notebook created.');
+      await loadNotebooks(true);
     } catch (error: any) {
       setStatus(error.message, true);
     }
@@ -55,17 +53,13 @@ export function NotebooksView({ notebooks, setNotebooks, onSelect, setStatus }: 
   return (
     <>
       <div className="section-header shrink-0">
-        <div className="section-title">{t('selectNotebook') || 'Select Notebook'}</div>
-        <button 
-          className="icon-button" 
-          type="button" 
-          aria-label="Refresh" 
-          title="Refresh"
-          onClick={() => loadNotebooks(true)}
-          disabled={isLoading}
+        <div 
+          className={`section-title cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-2 ${isLoading ? 'opacity-50 cursor-wait' : ''}`}
+          onClick={() => !isLoading && loadNotebooks(true)}
+          title={t('refresh') || 'Refresh'}
         >
-          <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-        </button>
+          {t('selectNotebook') || 'Select Notebook'}
+        </div>
       </div>
       <form className="create-form shrink-0" onSubmit={handleCreate}>
         <input 
