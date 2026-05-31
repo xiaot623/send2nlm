@@ -112,7 +112,7 @@
 
   .create-form {
     @apply mb-3.5 grid gap-2 items-center;
-    grid-template-columns: 54px 1fr auto;
+    grid-template-columns: 1fr auto;
   }
 
   .create-form input {

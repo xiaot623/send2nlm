@@ -13,7 +13,6 @@ interface Props {
 
 export function NotebooksView({ notebooks, setNotebooks, onSelect, setStatus }: Props) {
   const [title, setTitle] = useState('');
-  const [emoji, setEmoji] = useState('📒');
   const [isLoading, setIsLoading] = useState(false);
 
   const loadNotebooks = async (refresh = false) => {
@@ -44,7 +43,7 @@ export function NotebooksView({ notebooks, setNotebooks, onSelect, setStatus }: 
 
     setStatus('Creating notebook…');
     try {
-      const notebook = await createNotebook({ title: title.trim(), emoji: emoji.trim() || '📒' });
+      const notebook = await createNotebook({ title: title.trim() });
       setTitle('');
       setNotebooks([notebook, ...notebooks]);
       setStatus('Notebook created.');
@@ -68,14 +67,7 @@ export function NotebooksView({ notebooks, setNotebooks, onSelect, setStatus }: 
           <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
         </button>
       </div>
-
       <form className="create-form shrink-0" onSubmit={handleCreate}>
-        <input 
-          maxLength={2} 
-          value={emoji} 
-          onChange={e => setEmoji(e.target.value)}
-          aria-label="emoji" 
-        />
         <input 
           placeholder="Notebook title" 
           value={title}
@@ -95,7 +87,7 @@ export function NotebooksView({ notebooks, setNotebooks, onSelect, setStatus }: 
               className="notebook-item transition-all" 
               onClick={() => onSelect(nb)}
             >
-              <div className="notebook-title">{nb.emoji || '📒'} {nb.title}</div>
+              <div className="notebook-title">{nb.title}</div>
             </button>
           ))
         )}
