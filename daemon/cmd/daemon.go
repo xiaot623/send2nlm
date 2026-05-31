@@ -122,6 +122,8 @@ func bootstrapPluginSystem(cfg core.RuntimeConfig) {
 		log.Printf("[daemon] cannot create producer dir: %v", err)
 		return
 	}
+	installEmbedded(producerDir, "arxiv.go", "producer/arxiv/arxiv.go")
+	installEmbedded(producerDir, "hf_paper.go", "producer/hf_paper/hf_paper.go")
 	installEmbedded(producerDir, "lark.go", "producer/lark.go")
 	installEmbedded(producerDir, "weixin.go", "producer/weixin/weixin.go")
 
