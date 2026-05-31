@@ -30,3 +30,35 @@ func AddFileSource(ctx context.Context, notebookID, filePath string) (string, er
 	}
 	return resp.Source.ID, nil
 }
+
+// Source represents a single resource in a notebook.
+type Source struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Type  string `json:"type"`
+}
+
+// srcListWrapper matches the JSON output format of list if it wraps in "sources".
+type srcListWrapper struct {
+	Sources []Source `json:"sources"`
+}
+
+// ListSources retrieves all sources for a notebook via `notebooklm source list --json`.
+func ListSources(ctx context.Context, notebookID string) ([]Source, error) {
+	out, err := execNotebookLM(ctx, "source", "list", "-n", notebookID, "--json")
+	if err != nil {
+		return nil, err
+	}
+
+	var sources []Source
+	if err := decodeJSON(out, &sources); err == nil {
+		return sources, nil
+	}
+
+	var wrapper srcListWrapper
+	if err := decodeJSON(out, &wrapper); err == nil {
+		return wrapper.Sources, nil
+	}
+
+	return nil, fmt.Errorf("decode source list failed: unexpected output format")
+}

@@ -10,8 +10,6 @@ import (
 
 const (
 	StatusPending     = "pending"
-	StatusProducing   = "producing"
-	StatusUploading   = "uploading"
 	StatusTasking     = "tasking"
 	StatusPolling     = "polling"
 	StatusDownloading = "downloading"
@@ -45,8 +43,7 @@ type Job struct {
 	URL           string                `json:"url"`
 	Status        string                `json:"status"`
 	Tasks         []string              `json:"tasks"`
-	PDFPath       string                `json:"pdf_path"`
-	SourceID      string                `json:"source_id"`
+	SourceIDs     []string              `json:"source_ids"`
 	TaskResults   map[string]TaskResult `json:"task_results"`
 	Error         string                `json:"error"`
 	RetryCount    int                   `json:"retry_count"`
@@ -55,15 +52,16 @@ type Job struct {
 	CompletedAt   string                `json:"completed_at"`
 }
 
-func NewJob(notebookID, notebookTitle, url string, tasks []string) *Job {
+func NewJob(notebookID, notebookTitle, url string, tasks []string, sourceIDs []string) *Job {
 	now := time.Now().UTC().Format(time.RFC3339)
 	return &Job{
 		ID:            newID(),
 		NotebookID:    notebookID,
 		NotebookTitle: notebookTitle,
 		URL:           url,
-		Status:        StatusPending,
 		Tasks:         tasks,
+		SourceIDs:     sourceIDs,
+		Status:        StatusPending,
 		TaskResults:   map[string]TaskResult{},
 		CreatedAt:     now,
 		UpdatedAt:     now,

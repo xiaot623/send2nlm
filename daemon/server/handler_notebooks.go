@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -92,6 +93,72 @@ func notebookTitleLookup(ctx context.Context, a *App, notebookID string) string 
 		return ""
 	}
 	return title
+}
+
+func (a *App) handleListSources(w http.ResponseWriter, r *http.Request) {
+	notebookID := r.PathValue("id")
+	if notebookID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "notebook id is required"})
+		return
+	}
+	sources, err := nlm.ListSources(r.Context(), notebookID)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sources": sources})
+}
+
+func (a *App) handleUploadResource(w http.ResponseWriter, r *http.Request) {
+	notebookID := r.PathValue("id")
+	if notebookID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "notebook id is required"})
+		return
+	}
+
+	var req struct {
+		URL string `json:"url"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if req.URL == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "url is required"})
+		return
+	}
+
+	ctx := r.Context()
+	
+	// Step 1: URL -> PDF
+	pdfPath, err := a.producers.Resolve(ctx, req.URL)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	// Step 2: Upload to NotebookLM
+	sourceID, err := nlm.AddFileSource(ctx, notebookID, pdfPath)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+
+	// Step 3: Fetch updated list
+	sources, err := nlm.ListSources(ctx, notebookID)
+	if err != nil {
+		// Even if listing fails, the upload succeeded.
+		writeJSON(w, http.StatusOK, map[string]any{
+			"source_id": sourceID,
+			"warning":   fmt.Sprintf("uploaded successfully but failed to fetch list: %v", err),
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"source_id": sourceID,
+		"sources":   sources,
+	})
 }
 
 var _ = core.Notebook{}

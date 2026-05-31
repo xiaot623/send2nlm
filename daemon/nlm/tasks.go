@@ -29,13 +29,13 @@ type DownloadedArtifact struct {
 }
 
 // GenerateAudio starts an Audio Overview generation via `notebooklm generate audio`.
-func GenerateAudio(ctx context.Context, notebookID string) (*GenTaskResponse, error) {
-	out, err := execNotebookLM(ctx,
-		"generate", "audio",
-		"-n", notebookID,
-		"Create a deep-dive audio overview summarizing the content",
-		"--json",
-	)
+func GenerateAudio(ctx context.Context, notebookID string, sourceIDs []string) (*GenTaskResponse, error) {
+	args := []string{"generate", "audio", "-n", notebookID}
+	for _, sid := range sourceIDs {
+		args = append(args, "-s", sid)
+	}
+	args = append(args, "Create a deep-dive audio overview summarizing the content", "--json")
+	out, err := execNotebookLM(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -48,12 +48,13 @@ func GenerateAudio(ctx context.Context, notebookID string) (*GenTaskResponse, er
 }
 
 // GenerateSlides starts a Slide Deck generation via `notebooklm generate slide-deck`.
-func GenerateSlides(ctx context.Context, notebookID string) (*GenTaskResponse, error) {
-	out, err := execNotebookLM(ctx,
-		"generate", "slide-deck",
-		"-n", notebookID,
-		"--json",
-	)
+func GenerateSlides(ctx context.Context, notebookID string, sourceIDs []string) (*GenTaskResponse, error) {
+	args := []string{"generate", "slide-deck", "-n", notebookID}
+	for _, sid := range sourceIDs {
+		args = append(args, "-s", sid)
+	}
+	args = append(args, "--json")
+	out, err := execNotebookLM(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,13 +67,13 @@ func GenerateSlides(ctx context.Context, notebookID string) (*GenTaskResponse, e
 }
 
 // GenerateVideo starts a Video Overview generation via `notebooklm generate video`.
-func GenerateVideo(ctx context.Context, notebookID string) (*GenTaskResponse, error) {
-	out, err := execNotebookLM(ctx,
-		"generate", "video",
-		"-n", notebookID,
-		"Create a concise video overview summarizing the content",
-		"--json",
-	)
+func GenerateVideo(ctx context.Context, notebookID string, sourceIDs []string) (*GenTaskResponse, error) {
+	args := []string{"generate", "video", "-n", notebookID}
+	for _, sid := range sourceIDs {
+		args = append(args, "-s", sid)
+	}
+	args = append(args, "Create a concise video overview summarizing the content", "--json")
+	out, err := execNotebookLM(ctx, args...)
 	if err != nil {
 		return nil, err
 	}

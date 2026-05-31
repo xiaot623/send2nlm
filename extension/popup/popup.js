@@ -1,4 +1,4 @@
-import { createJob, createNotebook, getJob, listNotebooks } from "../shared/daemon-client.js";
+import { createJob, createNotebook, getJob, listNotebooks, uploadResource, listSources } from "../shared/daemon-client.js";
 import { applyI18n } from "../shared/i18n.js";
 
 const state = {
@@ -8,6 +8,8 @@ const state = {
   currentTab: null,
   currentJobId: null,
   pollTimer: null,
+  sources: [],
+  newSourceId: null,
 };
 
 const elements = {
@@ -30,11 +32,14 @@ const elements = {
   viewNotebookLink: document.getElementById("viewNotebookLink"),
   statusBanner: document.getElementById("statusBanner"),
   backBar: document.getElementById("backBar"),
+  uploadRetryBtn: document.getElementById("uploadRetryBtn"),
+  sourceCount: document.getElementById("sourceCount"),
+  sourceList: document.getElementById("sourceList"),
 };
 
 function setPage(page) {
   state.currentPage = page;
-  elements.pages.style.transform = `translateX(-${page * 33.3333}%)`;
+  elements.pages.style.transform = `translateX(-${page * 25}%)`;
   elements.backBar.classList.toggle("hidden", page === 0);
 }
 
@@ -63,12 +68,7 @@ function renderNotebooks() {
       <div class="notebook-title">${notebook.emoji || "📒"} ${notebook.title}</div>
     `;
     button.addEventListener("click", () => {
-      state.selectedNotebook = notebook;
-      elements.selectedNotebookTitle.textContent = `${notebook.emoji || "📒"} ${notebook.title}`;
-      elements.pageUrlPreview.textContent = state.currentTab?.url || "";
-      elements.viewNotebookLink.href = notebook.url || "#";
-      elements.viewNotebookLink.classList.toggle("hidden", !notebook.url);
-      setPage(1);
+      handleNotebookSelection(notebook);
     });
     elements.notebookList.appendChild(button);
   });
@@ -117,10 +117,7 @@ async function handleCreateNotebook(event) {
 }
 
 function renderJob(job) {
-  const steps = [
-    ["PDF", job.pdf_path ? "generated" : job.status === "pending" ? "waiting" : "processing"],
-    ["Upload", job.source_id ? "done" : ["uploading", "tasking", "polling", "downloading", "receiving", "done"].includes(job.status) ? "processing" : "waiting"],
-  ];
+  const steps = [];
 
   for (const [taskType, label] of [
     ["audio_overview", "Audio Overview"],
@@ -156,8 +153,14 @@ async function pollJob(jobID) {
 }
 
 async function handleSend() {
-  if (!state.selectedNotebook || !state.currentTab?.url) {
-    setStatus("Notebook or current tab is missing.", true);
+  if (!state.selectedNotebook) {
+    setStatus("Notebook is missing.", true);
+    return;
+  }
+
+  const selectedSourceIds = Array.from(elements.sourceList.querySelectorAll("input:checked")).map((cb) => cb.value);
+  if (selectedSourceIds.length === 0) {
+    setStatus("Please select at least one source.", true);
     return;
   }
 
@@ -170,11 +173,12 @@ async function handleSend() {
   try {
     const result = await createJob({
       notebook_id: state.selectedNotebook.id,
-      url: state.currentTab.url,
+      url: state.currentTab?.url || "",
       tasks,
+      source_ids: selectedSourceIds,
     });
     state.currentJobId = result.job_id;
-    setPage(2);
+    setPage(3);
     setStatus("Job accepted.");
     await pollJob(state.currentJobId);
     state.pollTimer = setInterval(() => pollJob(state.currentJobId), 3000);
@@ -183,11 +187,67 @@ async function handleSend() {
   }
 }
 
+function renderSources() {
+  elements.sourceCount.textContent = state.sources.length;
+  if (state.sources.length === 0) {
+    elements.sourceList.innerHTML = `<div class="detail-card">No sources available.</div>`;
+    return;
+  }
+  
+  elements.sourceList.innerHTML = "";
+  state.sources.forEach(source => {
+    const isNew = source.id === state.newSourceId;
+    const label = document.createElement("label");
+    label.className = `source-item ${isNew ? "selected" : ""}`;
+    label.innerHTML = `
+      <input type="checkbox" value="${source.id}" ${isNew ? "checked" : ""} />
+      <div class="source-title" title="${source.title}">${source.title}</div>
+      ${isNew ? '<span class="new-badge">[新]</span>' : ''}
+    `;
+    const checkbox = label.querySelector("input");
+    checkbox.addEventListener("change", () => {
+      label.classList.toggle("selected", checkbox.checked);
+    });
+    elements.sourceList.appendChild(label);
+  });
+}
+
+async function handleNotebookSelection(notebook) {
+  state.selectedNotebook = notebook;
+  elements.selectedNotebookTitle.textContent = `${notebook.emoji || "📒"} ${notebook.title}`;
+  elements.pageUrlPreview.textContent = state.currentTab?.url || "No page context";
+  elements.viewNotebookLink.href = notebook.url || "#";
+  elements.viewNotebookLink.classList.toggle("hidden", !notebook.url);
+  
+  setPage(1); // Uploading page
+  elements.uploadRetryBtn.classList.add("hidden");
+  setStatus("");
+
+  try {
+    let result;
+    if (state.currentTab?.url && state.currentTab.url.startsWith("http")) {
+      result = await uploadResource(notebook.id, state.currentTab.url);
+      state.newSourceId = result.source_id;
+    } else {
+      result = await listSources(notebook.id);
+      state.newSourceId = null;
+    }
+    state.sources = result.sources || [];
+    renderSources();
+    if (result.warning) setStatus(result.warning, true);
+    setPage(2);
+  } catch (err) {
+    setStatus(err.message, true);
+    elements.uploadRetryBtn.classList.remove("hidden");
+  }
+}
+
 function bindEvents() {
   elements.backButton.addEventListener("click", () => setPage(Math.max(0, state.currentPage - 1)));
   elements.refreshButton.addEventListener("click", () => loadNotebooks(true));
   elements.createNotebookForm.addEventListener("submit", handleCreateNotebook);
   elements.sendButton.addEventListener("click", handleSend);
+  elements.uploadRetryBtn.addEventListener("click", () => handleNotebookSelection(state.selectedNotebook));
 }
 
 async function init() {

@@ -31,6 +31,14 @@
             <div id="notebookList" class="notebook-list"></div>
           </section>
 
+          <section class="page" id="page-uploading">
+            <div class="uploading-state">
+              <div id="uploadSpinner" class="spinner"></div>
+              <div id="uploadStatusText">Converting and uploading page...</div>
+              <button id="uploadRetryBtn" class="primary hidden" type="button">Retry</button>
+            </div>
+          </section>
+
           <section class="page" id="page-send">
             <div class="detail-card">
               <div class="label">Notebook</div>
@@ -40,6 +48,12 @@
               <div class="label">Page</div>
               <div id="pageUrlPreview" class="url-preview"></div>
             </div>
+            
+            <div class="sources-section">
+              <div class="section-title">Sources (<span id="sourceCount">0</span>)</div>
+              <div id="sourceList" class="source-list"></div>
+            </div>
+
             <div class="options">
               <label><input id="audioTask" type="checkbox" checked /> <span data-i18n="audioOverview"></span></label>
               <label><input id="slidesTask" type="checkbox" /> <span data-i18n="slideDeck"></span></label>

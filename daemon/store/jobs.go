@@ -13,22 +13,22 @@ import (
 
 func (s *Store) CreateJob(job *core.Job) error {
 	_, err := s.db.Exec(`
-INSERT INTO jobs(id, notebook_id, notebook_title, url, status, tasks, pdf_path, source_id, task_results, error, retry_count, created_at, updated_at, completed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		job.ID, job.NotebookID, job.NotebookTitle, job.URL, job.Status, core.MarshalTasks(job.Tasks), job.PDFPath, job.SourceID, core.MarshalTaskResults(job.TaskResults), job.Error, job.RetryCount, job.CreatedAt, job.UpdatedAt, job.CompletedAt)
+INSERT INTO jobs(id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, created_at, updated_at, completed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		job.ID, job.NotebookID, job.NotebookTitle, job.URL, job.Status, core.MarshalTasks(job.Tasks), core.MarshalTasks(job.SourceIDs), core.MarshalTaskResults(job.TaskResults), job.Error, job.RetryCount, job.CreatedAt, job.UpdatedAt, job.CompletedAt)
 	return err
 }
 
 func (s *Store) GetJob(ctx context.Context, id string) (*core.Job, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, notebook_id, notebook_title, url, status, tasks, pdf_path, source_id, task_results, error, retry_count, created_at, updated_at, completed_at
+SELECT id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, created_at, updated_at, completed_at
 FROM jobs WHERE id = ?`, id)
 	return scanJob(row)
 }
 
 func (s *Store) ListJobs(ctx context.Context, statusFilter string) ([]core.Job, error) {
 	query := `
-SELECT id, notebook_id, notebook_title, url, status, tasks, pdf_path, source_id, task_results, error, retry_count, created_at, updated_at, completed_at
+SELECT id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, created_at, updated_at, completed_at
 FROM jobs`
 	var args []any
 	if statusFilter != "" {
@@ -88,6 +88,7 @@ func scanJob(row scanner) (*core.Job, error) {
 	var (
 		job             core.Job
 		tasksJSON       string
+		sourceIDsJSON   string
 		taskResultsJSON string
 	)
 	err := row.Scan(
@@ -97,8 +98,7 @@ func scanJob(row scanner) (*core.Job, error) {
 		&job.URL,
 		&job.Status,
 		&tasksJSON,
-		&job.PDFPath,
-		&job.SourceID,
+		&sourceIDsJSON,
 		&taskResultsJSON,
 		&job.Error,
 		&job.RetryCount,
@@ -113,6 +113,7 @@ func scanJob(row scanner) (*core.Job, error) {
 		return nil, err
 	}
 	_ = json.Unmarshal([]byte(tasksJSON), &job.Tasks)
+	_ = json.Unmarshal([]byte(sourceIDsJSON), &job.SourceIDs)
 	if job.TaskResults == nil {
 		job.TaskResults = map[string]core.TaskResult{}
 	}

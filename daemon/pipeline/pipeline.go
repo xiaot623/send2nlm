@@ -63,24 +63,6 @@ func (p *Pipeline) execute(job *core.Job) error {
 		return err
 	}
 
-	// ── Step 1: PRODUCING ───────────────────────────────────────────────
-	_ = p.store.UpdateJobStatus(ctx, job.ID, core.StatusProducing)
-	pdfPath, err := p.producers.Resolve(ctx, job.URL)
-	if err != nil {
-		return fail(err)
-	}
-	job.PDFPath = pdfPath
-	_ = p.store.UpdateJobProgress(ctx, job.ID, map[string]any{"pdf_path": pdfPath})
-
-	// ── Step 2: UPLOADING ───────────────────────────────────────────────
-	_ = p.store.UpdateJobStatus(ctx, job.ID, core.StatusUploading)
-	sourceID, err := nlm.AddFileSource(ctx, job.NotebookID, pdfPath)
-	if err != nil {
-		return fail(err)
-	}
-	job.SourceID = sourceID
-	_ = p.store.UpdateJobProgress(ctx, job.ID, map[string]any{"source_id": sourceID})
-
 	// ── Step 3: TASKING ─────────────────────────────────────────────────
 	_ = p.store.UpdateJobStatus(ctx, job.ID, core.StatusTasking)
 	taskResults := map[string]core.TaskResult{}
@@ -89,7 +71,7 @@ func (p *Pipeline) execute(job *core.Job) error {
 	for _, task := range job.Tasks {
 		switch task {
 		case "audio_overview":
-			resp, err := nlm.GenerateAudio(ctx, job.NotebookID)
+			resp, err := nlm.GenerateAudio(ctx, job.NotebookID, job.SourceIDs)
 			if err != nil {
 				return fail(err)
 			}
@@ -100,7 +82,7 @@ func (p *Pipeline) execute(job *core.Job) error {
 				StartedAt: time.Now().UTC().Format(time.RFC3339),
 			}
 		case "slide_deck":
-			resp, err := nlm.GenerateSlides(ctx, job.NotebookID)
+			resp, err := nlm.GenerateSlides(ctx, job.NotebookID, job.SourceIDs)
 			if err != nil {
 				return fail(err)
 			}
@@ -111,7 +93,7 @@ func (p *Pipeline) execute(job *core.Job) error {
 				StartedAt: time.Now().UTC().Format(time.RFC3339),
 			}
 		case "video_overview":
-			resp, err := nlm.GenerateVideo(ctx, job.NotebookID)
+			resp, err := nlm.GenerateVideo(ctx, job.NotebookID, job.SourceIDs)
 			if err != nil {
 				return fail(err)
 			}

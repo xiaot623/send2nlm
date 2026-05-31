@@ -42,8 +42,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     url TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     tasks TEXT NOT NULL DEFAULT '[]',
-    pdf_path TEXT DEFAULT '',
-    source_id TEXT DEFAULT '',
+    source_ids TEXT DEFAULT '[]',
     task_results TEXT DEFAULT '{}',
     error TEXT DEFAULT '',
     retry_count INTEGER DEFAULT 0,
@@ -55,5 +54,10 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_notebooks_cached_at ON notebooks(cached_at);
 `
 	_, err := s.db.Exec(schema)
+	
+	// Migration: add source_ids to existing tables
+	_ = s.db.QueryRow("SELECT source_ids FROM jobs LIMIT 1").Scan(new(any)) // Check if it exists
+	s.db.Exec("ALTER TABLE jobs ADD COLUMN source_ids TEXT DEFAULT '[]'") // Ignore error if exists
+
 	return err
 }

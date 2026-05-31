@@ -11,19 +11,20 @@ import (
 func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		NotebookID string   `json:"notebook_id"`
-		URL        string   `json:"url"`
+		URL        string   `json:"url"` // Keep URL for metadata display
 		Tasks      []string `json:"tasks"`
+		SourceIDs  []string `json:"source_ids"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if req.NotebookID == "" || req.URL == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "notebook_id and url are required"})
+	if req.NotebookID == "" || len(req.SourceIDs) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "notebook_id and source_ids are required"})
 		return
 	}
 
-	job := core.NewJob(req.NotebookID, notebookTitleLookup(r.Context(), a, req.NotebookID), req.URL, req.Tasks)
+	job := core.NewJob(req.NotebookID, notebookTitleLookup(r.Context(), a, req.NotebookID), req.URL, req.Tasks, req.SourceIDs)
 	if err := a.store.CreateJob(job); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return

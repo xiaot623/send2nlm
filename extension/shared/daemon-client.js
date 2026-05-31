@@ -74,6 +74,19 @@ export async function createJob(body) {
   });
 }
 
+export async function listSources(notebookID) {
+  const port = await resolvePort();
+  return request(port, `/notebooks/${notebookID}/sources`);
+}
+
+export async function uploadResource(notebookID, url) {
+  const port = await resolvePort();
+  return request(port, `/notebooks/${notebookID}/upload`, {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+}
+
 export async function getJob(jobID) {
   const port = await resolvePort();
   return request(port, `/jobs/${jobID}`);
