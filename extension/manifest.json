@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Send2NLM",
+  "version": "0.0.1",
+  "description": "Send the current page to NotebookLM through a local daemon.",
+  "default_locale": "en",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["http://localhost:*/*", "http://127.0.0.1:*/*"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Send2NLM",
+    "default_popup": "popup/popup.html"
+  }
+}

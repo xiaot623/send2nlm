@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Send2NLM</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <button id="backButton" class="ghost hidden" type="button" data-i18n="backButton"></button>
+        <div class="brand" data-i18n="appName"></div>
+        <button id="refreshButton" class="ghost" type="button" data-i18n="refreshList"></button>
+      </header>
+
+      <div id="statusBanner" class="status-banner hidden"></div>
+
+      <div class="pages-shell">
+        <div id="pages" class="pages" data-page="0">
+          <section class="page" id="page-notebooks">
+            <div class="section-title" data-i18n="selectNotebook"></div>
+            <div id="notebookList" class="notebook-list"></div>
+            <form id="createNotebookForm" class="create-form">
+              <input id="emojiInput" maxlength="2" value="📒" aria-label="emoji" />
+              <input id="titleInput" placeholder="Notebook title" />
+              <button type="submit" data-i18n="createNotebook"></button>
+            </form>
+          </section>
+
+          <section class="page" id="page-send">
+            <div class="detail-card">
+              <div class="label">Notebook</div>
+              <div id="selectedNotebookTitle" class="value"></div>
+            </div>
+            <div class="detail-card">
+              <div class="label">Page</div>
+              <div id="pageUrlPreview" class="url-preview"></div>
+            </div>
+            <div class="options">
+              <label><input id="audioTask" type="checkbox" checked /> <span data-i18n="audioOverview"></span></label>
+              <label><input id="slidesTask" type="checkbox" /> <span data-i18n="slideDeck"></span></label>
+            </div>
+            <button id="sendButton" class="primary" type="button" data-i18n="sendButton"></button>
+          </section>
+
+          <section class="page" id="page-result">
+            <div id="resultNotebook" class="detail-card"></div>
+            <div id="resultUrl" class="detail-card url-preview"></div>
+            <div id="resultSteps" class="result-steps"></div>
+            <a id="viewNotebookLink" class="link-button hidden" target="_blank" rel="noreferrer" data-i18n="viewInNotebookLM"></a>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./popup.js"></script>
+  </body>
+  </html>

@@ -1,0 +1,31 @@
+# Go build artifacts
+daemon/send2nlm
+*.exe
+*.test
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dev assets (contains local DB, config, temp files)
+dev_assets
+
+# Dependencies
+node_modules/
+
+# Chrome extension packaging
+*.zip
+*.crx
+*.pem
+
+# Env
+.env
+.env.local

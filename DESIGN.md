@@ -24,13 +24,13 @@ Send2NLM 是一个 Chrome 浏览器扩展 (MV3)，将用户当前浏览的网页
 | CLI | 用途 |
 |-----|------|
 | `notebooklm list --json` | 获取笔记本列表 |
-| `notebooklm create <title> --use --json` | 创建新笔记本 |
-| `notebooklm -n <id> source add <file> --json` | 上传 PDF 文件到笔记本 |
-| `notebooklm -n <id> generate audio <instructions> --json` | 触发音频概览生成 |
-| `notebooklm -n <id> generate slide-deck --json` | 触发幻灯片生成 |
-| `notebooklm -n <id> artifact poll <taskID> --json` | 轮询生成任务状态（纯 HTTP，无需浏览器） |
-| `notebooklm -n <id> download audio <path> --latest --force` | 下载完成的音频文件 |
-| `notebooklm -n <id> download slide-deck <path> --latest --force` | 下载完成的幻灯片 |
+| `notebooklm create <title> --use --json` | 创建新笔记本（--use 激活笔记本上下文） |
+| `notebooklm source add -n <id> <file> --json` | 上传 PDF 文件到笔记本（-n 在子命令后） |
+| `notebooklm generate audio -n <id> <instructions> --json` | 触发音频概览生成 |
+| `notebooklm generate slide-deck -n <id> --json` | 触发幻灯片生成 |
+| `notebooklm artifact poll -n <id> <taskID> --json` | 轮询生成任务状态（纯 HTTP，无需浏览器） |
+| `notebooklm download audio -n <id> <path> --latest --force` | 下载完成的音频文件 |
+| `notebooklm download slide-deck -n <id> <path> --latest --force` | 下载完成的幻灯片 |
 | `lark-cli drive +export --file-extension pdf` | 飞书文档导出 PDF |
 
 > **注**: Default Producer 使用内置 HTTP 抓取 + MD→PDF 转换器，不依赖外部网页抓取工具。
@@ -1380,17 +1380,24 @@ SEND2NLM_DEV=1 go run . daemon
 
 2. **热加载文件监听**: `fsnotify` 在 macOS/Linux 上行为良好，但需注意编辑器保存时的原子写入问题（vim 的 swap 文件、VSCode 的临时写入）。脚本加载失败时应保留旧版本运行，仅日志告警。
 
-3. **notebooklm-py CLI JSON 输出格式**: `notebooklm list --json`、`notebooklm artifact poll --json` 等的精确 JSON 结构需要在实际开发 Phase 2-5 中验证并固化。当前代码已做兼容处理（数组/对象双格式），但具体字段名以实际 CLI 输出为准。
+3. **notebooklm-py CLI 参数位置** (E2E 已发现并修复): `-n`/`--notebook` 参数必须放在子命令**之后**（如 `notebooklm source add -n <id>` 而非 `notebooklm -n <id> source add`）。
 
-4. **MD → PDF 保真度**: 内置 HTTP 抓取 + Markdown 转换方案对复杂页面（表格、代码块、图片）的还原度如何？`wkhtmltopdf` / `chromedp` 的排版质量能否满足？**Phase 3 需进行质量评估**。
+4. **notebooklm-py JSON 输出结构** (E2E 已验证):
+   - `list --json` → `{notebooks: [{id, title, created_at}], count}`（嵌套在 `notebooks` key 内）
+   - `create --use --json` → `{notebook: {id, title}, active_notebook_id}`（id 嵌套在 `notebook` 内）
+   - `source add --json` → `{source: {id, title, type}}`（source_id 在 `source.id` 下）
+   - `generate audio --json` → `{task_id, status: "pending"}`（平铺）
+   - `artifact poll --json` → `{task_id, status}`（status: pending/in_progress/completed/failed）
 
-5. **并发 job**: 当前采用**串行队列**执行。虽然 notebooklm-py 无 browser session 冲突限制，但 NotebookLM 服务端的并发生成可能有 rate limit，保守起见仍串行。
+5. **MD → PDF 保真度**: 内置 HTTP 抓取 + Markdown 转换方案对复杂页面的还原度如何？Phase 3 需评估。
 
-6. **外部副作用幂等**: 0.0.1 暂不处理 NotebookLM 外部副作用的精确幂等。若 `source add` / `generate *` 成功但 daemon 在写 SQLite 前崩溃，恢复时可能重复执行对应操作；后续版本再通过 source/task 查询做去重。
+6. **Pipeline panic 保护** (E2E 已修复): pipeline goroutine panic 会导致整个 daemon 崩溃。已添加 recover 保护。
 
-7. **Lark 链接范围**: 0.0.1 仅支持飞书 `docx` 链接导出 PDF；`wiki` / 旧 `docs` 链接的 token 解析与 doc-type 映射后续再扩展。
+7. **Lark wiki 链接**: `lark-cli drive +inspect` 会自动将 wiki 链接解包为 docx token，无需额外处理。
 
-8. **更多 artifact 类型**: notebooklm-py 支持 video、quiz、flashcards、infographic、mind-map、data-table、report 等多种生成类型。0.0.1 仅实现 `audio_overview` 和 `slide_deck`；后续版本可扩展 UI 让用户选择更多类型。
+8. **更多 artifact 类型**: notebooklm-py 支持 video、quiz、flashcards、infographic、mind-map 等。0.0.1 仅实现 audio_overview 和 slide_deck。
+
+9. **Receiver 日志**: 当前 receiver 错误被 pipeline 以 `_ =` 丢弃。需添加日志以便排查 Telegram 等投递问题。
 
 ---
 
