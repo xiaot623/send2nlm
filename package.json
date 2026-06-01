@@ -1,6 +1,6 @@
 {
   "name": "send2nlm",
-  "version": "0.0.1-rc.2",
+  "version": "0.0.1-rc.3",
   "description": "Send to NLM",
   "main": "index.js",
   "bin": {
