@@ -33,7 +33,20 @@ const daemonLogPath = path.join(runDir, "daemon.log");
 fs.mkdirSync(responseDir, { recursive: true });
 fs.mkdirSync(receiverDir, { recursive: true });
 fs.mkdirSync(producerDir, { recursive: true });
-fs.mkdirSync(devAssets, { recursive: true });
+
+const rootDevAssets = path.join(root, "dev_assets");
+if (fs.existsSync(rootDevAssets)) {
+  fs.cpSync(rootDevAssets, devAssets, {
+    recursive: true,
+    filter: (src) => {
+      const isSqlite = src.endsWith(".db") || src.endsWith("-shm") || src.endsWith("-wal");
+      return !isSqlite;
+    },
+  });
+} else {
+  fs.mkdirSync(devAssets, { recursive: true });
+}
+
 fs.copyFileSync(seedPath, statePath);
 const configSource = seedRuntimeConfig(devAssets);
 
