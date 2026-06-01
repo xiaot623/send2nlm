@@ -43,19 +43,20 @@ type TaskResult struct {
 }
 
 type Job struct {
-	ID            string                `json:"job_id"`
-	NotebookID    string                `json:"notebook_id"`
-	NotebookTitle string                `json:"notebook_title"`
-	URL           string                `json:"url"`
-	Status        string                `json:"status"`
-	Tasks         []string              `json:"tasks"`
-	SourceIDs     []string              `json:"source_ids"`
-	TaskResults   map[string]TaskResult `json:"task_results"`
-	Error         string                `json:"error"`
-	RetryCount    int                   `json:"retry_count"`
-	CreatedAt     string                `json:"created_at"`
-	UpdatedAt     string                `json:"updated_at"`
-	CompletedAt   string                `json:"completed_at"`
+	ID               string                `json:"job_id"`
+	NotebookID       string                `json:"notebook_id"`
+	NotebookTitle    string                `json:"notebook_title"`
+	URL              string                `json:"url"`
+	Status           string                `json:"status"`
+	Tasks            []string              `json:"tasks"`
+	SourceIDs        []string              `json:"source_ids"`
+	TaskResults      map[string]TaskResult `json:"task_results"`
+	Error            string                `json:"error"`
+	RetryCount       int                   `json:"retry_count"`
+	PollingStartedAt string                `json:"polling_started_at"`
+	CreatedAt        string                `json:"created_at"`
+	UpdatedAt        string                `json:"updated_at"`
+	CompletedAt      string                `json:"completed_at"`
 }
 
 func NewJob(notebookID, notebookTitle, url string, tasks []string, sourceIDs []string) *Job {

@@ -103,8 +103,21 @@ func PollArtifact(ctx context.Context, notebookID, taskID string) (*PollResponse
 	return &resp, nil
 }
 
-func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*GenTaskResponse, timeout, interval time.Duration) error {
+func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*GenTaskResponse, initialDelay, timeout, interval time.Duration) error {
 	deadline := time.Now().Add(timeout)
+	if initialDelay > 0 {
+		timer := time.NewTimer(initialDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+	if !time.Now().Before(deadline) {
+		return pollOnceBeforeTimeout(ctx, notebookID, tasks, timeout)
+	}
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -112,29 +125,7 @@ func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*Ge
 	const maxErrors = 3
 
 	for time.Now().Before(deadline) {
-		allReady := true
-		var loopErr error
-
-		for taskType, task := range tasks {
-			state, err := PollArtifact(ctx, notebookID, task.TaskID)
-			if err != nil {
-				loopErr = fmt.Errorf("poll %s: %w", taskType, err)
-				allReady = false
-				break // Stop checking other tasks this tick, retry next tick
-			}
-			// Update the task status for the caller.
-			task.Status = state.Status
-			switch state.Status {
-			case "completed", "done", "ready":
-				// Task finished successfully.
-			case "failed", "error":
-				return fmt.Errorf("task %s (%s) failed: status=%s", taskType, task.TaskID, state.Status)
-			default:
-				// Still processing — "pending", "generating", etc.
-				allReady = false
-			}
-		}
-
+		allReady, loopErr := PollTasksOnce(ctx, notebookID, tasks)
 		if loopErr != nil {
 			consecutiveErrors++
 			if consecutiveErrors >= maxErrors {
@@ -147,9 +138,46 @@ func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*Ge
 			}
 		}
 
-		<-ticker.C
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+	return pollOnceBeforeTimeout(ctx, notebookID, tasks, timeout)
+}
+
+func pollOnceBeforeTimeout(ctx context.Context, notebookID string, tasks map[string]*GenTaskResponse, timeout time.Duration) error {
+	allReady, err := PollTasksOnce(ctx, notebookID, tasks)
+	if err != nil {
+		return err
+	}
+	if allReady {
+		return nil
 	}
 	return fmt.Errorf("timed out waiting for artifact completion after %v", timeout)
+}
+
+func PollTasksOnce(ctx context.Context, notebookID string, tasks map[string]*GenTaskResponse) (bool, error) {
+	allReady := true
+	for taskType, task := range tasks {
+		state, err := PollArtifact(ctx, notebookID, task.TaskID)
+		if err != nil {
+			return false, fmt.Errorf("poll %s: %w", taskType, err)
+		}
+		// Update the task status for the caller.
+		task.Status = state.Status
+		switch state.Status {
+		case "completed", "done", "ready":
+			// Task finished successfully.
+		case "failed", "error":
+			return false, fmt.Errorf("task %s (%s) failed: status=%s", taskType, task.TaskID, state.Status)
+		default:
+			// Still processing — "pending", "generating", etc.
+			allReady = false
+		}
+	}
+	return allReady, nil
 }
 
 // DownloadArtifacts downloads all completed artifacts to the given directory

@@ -59,7 +59,7 @@ A lightweight **local Go daemon** handles all the heavy lifting — URL → PDF 
 1. **PRODUCING** — URL is converted to PDF. Custom adapters handle specific sites (e.g., Lark docs via `lark-cli`); a built-in Default adapter handles all other pages via HTTP fetch → Markdown → PDF.
 2. **UPLOADING** — PDF is uploaded to the target NotebookLM notebook via `notebooklm-py`.
 3. **TASKING** — Selected tasks (Audio Overview / Slide Deck / Video Overview) are triggered.
-4. **POLLING** — Daemon polls every 30s until all tasks complete (or 40min timeout).
+4. **POLLING** — Daemon waits 10min, then polls every 1min until all tasks complete (60min total limit, with one final status check before failing; resume-safe across daemon restarts).
 5. **DOWNLOADING** — Generated artifacts are downloaded to local disk.
 6. **RECEIVING** — Artifacts are delivered to configured receivers (local Downloads folder, Telegram, etc.).
 

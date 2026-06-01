@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     task_results TEXT DEFAULT '{}',
     error TEXT DEFAULT '',
     retry_count INTEGER DEFAULT 0,
+    polling_started_at TEXT DEFAULT '',
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     completed_at TEXT DEFAULT ''
@@ -68,6 +69,7 @@ CREATE INDEX IF NOT EXISTS idx_uploaded_sources_url ON uploaded_sources(url);
 	// Migration: add source_ids to existing tables
 	_ = s.db.QueryRow("SELECT source_ids FROM jobs LIMIT 1").Scan(new(any)) // Check if it exists
 	s.db.Exec("ALTER TABLE jobs ADD COLUMN source_ids TEXT DEFAULT '[]'")   // Ignore error if exists
+	s.db.Exec("ALTER TABLE jobs ADD COLUMN polling_started_at TEXT DEFAULT ''")
 
 	return err
 }

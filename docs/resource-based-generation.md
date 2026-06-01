@@ -195,7 +195,7 @@
 
 **Daemon 执行**：
 1. 对每个 task 调用 `notebooklm generate <type> -s <source_id> ...`，限定生成范围
-2. 轮询所有任务直到完成（每 30s，最长 40min）
+2. 先等待 10 分钟，再轮询所有任务直到完成（每 1min，总上限 60min；超过上限时先做最后一次状态查询，仍未完成才失败；daemon 重启后按 SQLite 中的 polling_started_at 继续）
 3. 下载产物
 4. Receiver 投递
 

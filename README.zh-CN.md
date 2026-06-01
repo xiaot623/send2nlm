@@ -60,7 +60,7 @@ Send2NLM 是一个 **Chrome 浏览器扩展 (MV3)**，将你正在浏览的网�
 1. **PRODUCING（生产）** — URL 转换为 PDF。自定义适配器处理特定站点（如飞书文档通过 `lark-cli`）；内置 Default 适配器处理其他页面（HTTP 抓取 → Markdown → PDF）。
 2. **UPLOADING（上传）** — PDF 通过 `notebooklm-py` 上传到目标 NotebookLM 笔记本。
 3. **TASKING（任务）** — 触发用户选择的任务（音频概览 / 幻灯片 / 视频概览）。
-4. **POLLING（轮询）** — Daemon 每 30 秒轮询一次任务状态，直到全部完成（最长 40 分钟超时）。
+4. **POLLING（轮询）** — Daemon 先等待 10 分钟，然后每 1 分钟轮询一次任务状态，直到全部完成（总上限 60 分钟；失败前会做最后一次状态查询；daemon 重启后可继续）。
 5. **DOWNLOADING（下载）** — 生成的产物下载到本地磁盘。
 6. **RECEIVING（投递）** — 产物投递到配置的接收器（本地 Downloads 文件夹、Telegram 等）。
 

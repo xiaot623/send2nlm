@@ -214,14 +214,14 @@ Pipeline 异步执行 (阶段进入与产物生成后立即更新 SQLite):
     │          记录 task_id, 初始 status
     │     3. 进入阶段时更新 job.status=tasking；完成后写入 task_results={...}
     │
-    ├─[Step 4] POLLING: 轮询任务状态 (每 30s, 最长 40min)
+    ├─[Step 4] POLLING: 先等待 10min，再轮询任务状态 (每 1min, 总上限 60min)
     │     loop {
     │       对于每个未完成的任务:
     │         notebooklm -n <id> artifact poll <taskID> --json （纯 HTTP，无需浏览器）
     │       更新 SQLite 中的 task_results
     │       if all completed: break
-    │       if elapsed > 40min: 标记超时
-    │       sleep(30s)
+    │       if elapsed > 60min: 最后查询一次；仍未完成则标记超时
+    │       sleep(1min)
     │     }
     │     进入阶段时更新 job.status=polling；全部完成后进入 DOWNLOADING
     │
@@ -483,6 +483,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     task_results  TEXT DEFAULT '{}',                 -- JSON object
     error         TEXT DEFAULT '',
     retry_count   INTEGER DEFAULT 0,
+    polling_started_at TEXT DEFAULT '',              -- polling 阶段进入时间，支持 daemon 重启恢复
     created_at    TEXT DEFAULT (datetime('now')),
     updated_at    TEXT DEFAULT (datetime('now')),
     completed_at  TEXT DEFAULT ''
@@ -804,9 +805,11 @@ func PollArtifact(ctx context.Context, notebookID, taskID string) (*PollResponse
     // 返回: {task_id, status}  — status 为 "completed"/"failed"/"generating" 等
     // 纯 HTTP 调用，无需浏览器。每次调用约 1-2s
 
-func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*GenTaskResponse, timeout, interval time.Duration) error
+func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*GenTaskResponse, initialDelay, timeout, interval time.Duration) error
     // for-loop 调用 PollArtifact，直到全部 completed 或超时
-    // 默认 interval=30s, timeout=40min
+    // 默认 initialDelay=10min, interval=1min, totalLimit=60min
+    // 超过 totalLimit 时会做一次最终 artifact poll，防止 daemon 停机期间任务已完成却被误标失败
+    // polling_started_at 持久化在 SQLite，daemon 重启后按 elapsed 继续等待/轮询
     // 在此期间 daemon 仍可处理其他 API 请求
 
 func DownloadArtifacts(ctx context.Context, notebookID, outputDir string, tasks map[string]*GenTaskResponse) ([]DownloadedArtifact, error)
@@ -854,7 +857,7 @@ func DownloadArtifacts(ctx context.Context, notebookID, outputDir string, tasks 
                      │
                      ▼
               ┌──────────────┐
-              │   POLLING    │  每 30s 轮询 (artifact poll) 直到全部完成或超时
+              │   POLLING    │  先等待 10min，再每 1min 轮询 (artifact poll)，总上限 60min
               └──────┬───────┘
                      │
                      ▼
@@ -971,7 +974,7 @@ func (p *Pipeline) Resume() error {
 | PRODUCING | 120s | 1 | 重试失败 → FAILED，记录 error |
 | UPLOADING | 300s | 2 | 重试失败 → FAILED |
 | TASKING | 60s | 1 | 重试失败 → FAILED |
-| POLLING | 40min 总量 | N/A | 超时 → FAILED（保留部分成功结果） |
+| POLLING | 60min 总量（前 10min 不查询，之后每 1min 查询） | N/A | 超时前最后查询一次；仍未完成 → FAILED（保留最后状态） |
 | DOWNLOADING | 300s | 2 | 重试失败 → FAILED（Receiver 需要本地资源） |
 | RECEIVING | 60s | 2 | 仅日志告警，不影响 job 最终状态 |
 
@@ -1382,7 +1385,7 @@ SEND2NLM_DEV=1 go run . daemon
 - [ ] POST /jobs + GET /jobs/:id
 
 ### Phase 5: 任务轮询 + 下载 + 恢复
-- [ ] 轮询逻辑 (`PollUntilReady`: 每 30s `artifact poll`，最长 40min)
+- [ ] 轮询逻辑 (`PollUntilReady`: 先等待 10min，再每 1min `artifact poll`，总上限 60min；失败前最终查询一次；支持 daemon 重启恢复)
 - [ ] 下载逻辑 (`DownloadArtifacts`: `download audio`/`download slide-deck` → 本地 TempDir)
 - [ ] Resume 机制 (启动时恢复未完成 job)
 - [ ] Chrome 扩展: Page 3 (进度展示, 轮询 daemon)

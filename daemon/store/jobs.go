@@ -13,22 +13,22 @@ import (
 
 func (s *Store) CreateJob(job *core.Job) error {
 	_, err := s.db.Exec(`
-INSERT INTO jobs(id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, created_at, updated_at, completed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		job.ID, job.NotebookID, job.NotebookTitle, job.URL, job.Status, core.MarshalTasks(job.Tasks), core.MarshalTasks(job.SourceIDs), core.MarshalTaskResults(job.TaskResults), job.Error, job.RetryCount, job.CreatedAt, job.UpdatedAt, job.CompletedAt)
+INSERT INTO jobs(id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, polling_started_at, created_at, updated_at, completed_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		job.ID, job.NotebookID, job.NotebookTitle, job.URL, job.Status, core.MarshalTasks(job.Tasks), core.MarshalTasks(job.SourceIDs), core.MarshalTaskResults(job.TaskResults), job.Error, job.RetryCount, job.PollingStartedAt, job.CreatedAt, job.UpdatedAt, job.CompletedAt)
 	return err
 }
 
 func (s *Store) GetJob(ctx context.Context, id string) (*core.Job, error) {
 	row := s.db.QueryRowContext(ctx, `
-SELECT id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, created_at, updated_at, completed_at
+SELECT id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, polling_started_at, created_at, updated_at, completed_at
 FROM jobs WHERE id = ?`, id)
 	return scanJob(row)
 }
 
 func (s *Store) ListJobs(ctx context.Context, statusFilter string) ([]core.Job, error) {
 	query := `
-SELECT id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, created_at, updated_at, completed_at
+SELECT id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, polling_started_at, created_at, updated_at, completed_at
 FROM jobs`
 	var args []any
 	if statusFilter != "" {
@@ -63,7 +63,7 @@ func (s *Store) ResetJobForRetry(ctx context.Context, id string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.ExecContext(ctx, `
 UPDATE jobs
-SET status = ?, task_results = '{}', error = '', retry_count = retry_count + 1, updated_at = ?, completed_at = ''
+SET status = ?, task_results = '{}', error = '', retry_count = retry_count + 1, polling_started_at = '', updated_at = ?, completed_at = ''
 WHERE id = ? AND status = ?`,
 		core.StatusPending, now, id, core.StatusFailed)
 	if err != nil {
@@ -105,6 +105,34 @@ func (s *Store) GetPendingJobs(ctx context.Context) ([]core.Job, error) {
 	return s.ListJobs(ctx, "")
 }
 
+func (s *Store) ListResumableJobs(ctx context.Context) ([]core.Job, error) {
+	rows, err := s.db.QueryContext(ctx, `
+SELECT id, notebook_id, notebook_title, url, status, tasks, source_ids, task_results, error, retry_count, polling_started_at, created_at, updated_at, completed_at
+FROM jobs
+WHERE status IN (?, ?, ?, ?, ?)
+ORDER BY created_at ASC`,
+		core.StatusPending,
+		core.StatusTasking,
+		core.StatusPolling,
+		core.StatusDownloading,
+		core.StatusReceiving,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jobs []core.Job
+	for rows.Next() {
+		job, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, *job)
+	}
+	return jobs, rows.Err()
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }
@@ -127,6 +155,7 @@ func scanJob(row scanner) (*core.Job, error) {
 		&taskResultsJSON,
 		&job.Error,
 		&job.RetryCount,
+		&job.PollingStartedAt,
 		&job.CreatedAt,
 		&job.UpdatedAt,
 		&job.CompletedAt,
