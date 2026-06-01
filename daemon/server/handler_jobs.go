@@ -57,6 +57,43 @@ func (a *App) handleGetJob(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, job)
 }
 
+func (a *App) handleRetryJob(w http.ResponseWriter, r *http.Request) {
+	jobID := r.PathValue("id")
+	if jobID == "" {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job id is required"})
+		return
+	}
+	job, err := a.store.GetJob(r.Context(), jobID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	if job == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job not found"})
+		return
+	}
+	if job.Status != core.StatusFailed {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": "only failed jobs can be retried"})
+		return
+	}
+	if err := a.store.ResetJobForRetry(r.Context(), job.ID); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	job.Status = core.StatusPending
+	job.TaskResults = map[string]core.TaskResult{}
+	job.Error = ""
+	job.RetryCount++
+	job.CompletedAt = ""
+	_ = a.pipeline.Enqueue(context.Background(), job)
+
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"job_id": job.ID,
+		"status": "accepted",
+	})
+}
+
 func (a *App) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	jobs, err := a.store.ListJobs(r.Context(), r.URL.Query().Get("status"))
 	if err != nil {

@@ -97,6 +97,13 @@ export async function getJob(jobID: string): Promise<any> {
   return request(port, `/jobs/${jobID}`);
 }
 
+export async function retryJob(jobID: string): Promise<any> {
+  const port = await resolvePort();
+  return request(port, `/jobs/${jobID}/retry`, {
+    method: "POST",
+  });
+}
+
 export async function listJobs(status?: string): Promise<any> {
   const port = await resolvePort();
   return request(port, `/jobs${status ? `?status=${status}` : ""}`);

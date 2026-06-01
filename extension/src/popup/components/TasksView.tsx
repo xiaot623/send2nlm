@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Job } from '../types';
 import { t } from '../i18n';
-import { listJobs, clearJobs } from '../../shared/daemon-client';
+import { listJobs, clearJobs, retryJob } from '../../shared/daemon-client';
 
 interface Props {
   setStatus: (msg: string, isError?: boolean) => void;
@@ -10,6 +10,7 @@ interface Props {
 export function TasksView({ setStatus }: Props) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
 
   const fetchJobs = async () => {
     try {
@@ -37,6 +38,18 @@ export function TasksView({ setStatus }: Props) {
       await fetchJobs();
     } catch (err: any) {
       setStatus(err.message, true);
+    }
+  };
+
+  const handleRetry = async (jobID: string) => {
+    try {
+      setRetryingJobId(jobID);
+      await retryJob(jobID);
+      await fetchJobs();
+    } catch (err: any) {
+      setStatus(err.message, true);
+    } finally {
+      setRetryingJobId(null);
     }
   };
 
@@ -87,11 +100,23 @@ export function TasksView({ setStatus }: Props) {
               flexDirection: 'column',
               gap: '8px'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                 <div style={{ fontWeight: 500, fontSize: '14px', wordBreak: 'break-all', paddingRight: '8px' }}>
                   {job.notebook_title || job.url || job.job_id}
                 </div>
-                {getStatusLabel(job.status)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {job.status === 'failed' && (
+                    <button
+                      className="secondary"
+                      onClick={() => handleRetry(job.job_id)}
+                      disabled={retryingJobId === job.job_id}
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                    >
+                      {retryingJobId === job.job_id ? (t('retryingTask') || 'Retrying...') : (t('retryTask') || 'Retry')}
+                    </button>
+                  )}
+                  {getStatusLabel(job.status)}
+                </div>
               </div>
               
               {job.error && (

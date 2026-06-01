@@ -59,6 +59,26 @@ func (s *Store) UpdateJobStatus(ctx context.Context, id, status string) error {
 	return err
 }
 
+func (s *Store) ResetJobForRetry(ctx context.Context, id string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := s.db.ExecContext(ctx, `
+UPDATE jobs
+SET status = ?, task_results = '{}', error = '', retry_count = retry_count + 1, updated_at = ?, completed_at = ''
+WHERE id = ? AND status = ?`,
+		core.StatusPending, now, id, core.StatusFailed)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return fmt.Errorf("job is not failed")
+	}
+	return nil
+}
+
 func (s *Store) ClearCompletedOrFailedJobs(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM jobs WHERE status IN ('done', 'completed', 'failed')`)
 	return err

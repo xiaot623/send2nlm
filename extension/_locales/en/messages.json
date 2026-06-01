@@ -12,6 +12,8 @@
   "viewInNotebookLM": { "message": "View in NotebookLM" },
   "tasksTitle": { "message": "Tasks" },
   "clearTasks": { "message": "Clear Completed" },
+  "retryTask": { "message": "Retry" },
+  "retryingTask": { "message": "Retrying..." },
   "statusPending": { "message": "Pending" },
   "statusTasking": { "message": "Creating Tasks" },
   "statusPolling": { "message": "Generating" },

@@ -38,6 +38,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("GET /jobs", a.handleListJobs)
 	mux.HandleFunc("POST /jobs/clear", a.handleClearJobs)
 	mux.HandleFunc("POST /jobs", a.handleCreateJob)
+	mux.HandleFunc("POST /jobs/{id}/retry", a.handleRetryJob)
 	mux.HandleFunc("GET /jobs/", a.handleGetJob)
 	return withMiddleware(mux)
 }

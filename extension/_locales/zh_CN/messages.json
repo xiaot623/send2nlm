@@ -12,6 +12,8 @@
   "viewInNotebookLM": { "message": "在 NotebookLM 中查看" },
   "tasksTitle": { "message": "任务列表" },
   "clearTasks": { "message": "清空已完成" },
+  "retryTask": { "message": "重试" },
+  "retryingTask": { "message": "重试中..." },
   "statusPending": { "message": "排队中" },
   "statusTasking": { "message": "提交任务中" },
   "statusPolling": { "message": "正在运行" },

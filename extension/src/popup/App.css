@@ -30,6 +30,7 @@
   }
 
   .ghost,
+  .secondary,
   .primary,
   .create-form button,
   .link-button {
@@ -39,6 +40,10 @@
 
   .ghost {
     @apply bg-transparent text-blue-600;
+  }
+
+  .secondary {
+    @apply bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed;
   }
 
   .primary,

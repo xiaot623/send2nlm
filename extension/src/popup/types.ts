@@ -24,6 +24,7 @@ export interface Job {
   notebook_id?: string;
   url?: string;
   error?: string;
+  retry_count?: number;
   created_at?: string;
   updated_at?: string;
 }
