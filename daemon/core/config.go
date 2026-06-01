@@ -32,6 +32,12 @@ func NewRuntimeConfig(dev bool) RuntimeConfig {
 	}
 }
 
+func (c *RuntimeConfig) SetConfigDir(dir string) {
+	if dir != "" {
+		c.ConfigDir = dir
+	}
+}
+
 func (c RuntimeConfig) Ensure() error {
 	for _, dir := range []string{
 		c.ConfigDir,

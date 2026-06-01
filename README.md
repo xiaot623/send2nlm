@@ -252,9 +252,28 @@ cd daemon && go run . daemon --dev
 # Or with environment variable
 SEND2NLM_DEV=1 go run . daemon
 
+# Start daemon in dev mode with NotebookLM calls backed by local JSON state
+npm run dev:mock
+
+# Run the full QA flow against a webpage
+npm run qa -- https://example.com/article
+
 # Load extension
 # Chrome → chrome://extensions → "Load unpacked" → extension/
 ```
+
+`npm run dev:mock` initializes `dev_assets/mock_notebooklm.json` from
+`assets/mock_notebooklm.seed.json` on first run, then keeps that JSON file as
+the mutable local NotebookLM state. Only NotebookLM access is mocked; the daemon
+HTTP API, SQLite store, pipeline, producers, and receivers keep their normal
+behavior.
+
+`npm run qa -- <url>` starts its own mock daemon, then logs the full flow under
+`e2e/<timestamp>/`: list notebooks, create notebook, refresh notebooks, upload
+the webpage, trigger all artifact tasks, poll until done, and run receivers.
+Intermediate responses, daemon logs, mock state, pipeline artifacts, and receiver
+outputs are preserved in that run directory. The built-in producer's opencli
+workspace is also redirected to `e2e/<timestamp>/producer/` for QA runs.
 
 ### Project Structure
 

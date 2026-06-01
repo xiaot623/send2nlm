@@ -7,11 +7,17 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
-// execNotebookLM runs the notebooklm-py CLI with the given arguments.
-// All commands are expected to return JSON output (--json flag is handled per-command).
-func execNotebookLM(ctx context.Context, args ...string) ([]byte, error) {
+type notebookLMBackend interface {
+	Exec(ctx context.Context, args ...string) ([]byte, error)
+	IsMock() bool
+}
+
+type cliBackend struct{}
+
+func (cliBackend) Exec(ctx context.Context, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "notebooklm", args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -20,6 +26,40 @@ func execNotebookLM(ctx context.Context, args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("notebooklm %v failed: %w\nstderr: %s", args, err, stderr.String())
 	}
 	return stdout.Bytes(), nil
+}
+
+func (cliBackend) IsMock() bool { return false }
+
+var (
+	backendMu sync.RWMutex
+	backend   notebookLMBackend = cliBackend{}
+)
+
+// UseMockBackend replaces NotebookLM CLI calls with a local JSON-backed mock.
+func UseMockBackend(statePath, artifactDir string) error {
+	mock, err := newMockBackend(statePath, artifactDir)
+	if err != nil {
+		return err
+	}
+	backendMu.Lock()
+	backend = mock
+	backendMu.Unlock()
+	return nil
+}
+
+func usingMockBackend() bool {
+	backendMu.RLock()
+	defer backendMu.RUnlock()
+	return backend.IsMock()
+}
+
+// execNotebookLM runs the notebooklm-py CLI with the given arguments.
+// All commands are expected to return JSON output (--json flag is handled per-command).
+func execNotebookLM(ctx context.Context, args ...string) ([]byte, error) {
+	backendMu.RLock()
+	b := backend
+	backendMu.RUnlock()
+	return b.Exec(ctx, args...)
 }
 
 // CheckNotebookLMAvailable verifies the notebooklm CLI is installed and authenticated.

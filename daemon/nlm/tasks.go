@@ -104,6 +104,17 @@ func PollArtifact(ctx context.Context, notebookID, taskID string) (*PollResponse
 }
 
 func PollUntilReady(ctx context.Context, notebookID string, tasks map[string]*GenTaskResponse, initialDelay, timeout, interval time.Duration) error {
+	if usingMockBackend() {
+		allReady, err := PollTasksOnce(ctx, notebookID, tasks)
+		if err != nil {
+			return err
+		}
+		if allReady {
+			return nil
+		}
+		return fmt.Errorf("mock NotebookLM tasks were not ready")
+	}
+
 	deadline := time.Now().Add(timeout)
 	if initialDelay > 0 {
 		timer := time.NewTimer(initialDelay)

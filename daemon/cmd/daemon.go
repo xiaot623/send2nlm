@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"send2nlm/core"
+	"send2nlm/nlm"
 	"send2nlm/producer"
 	"send2nlm/receiver"
 	"send2nlm/resources"
@@ -27,16 +28,30 @@ func runDaemon(args []string) error {
 	fs := newFlagSet("daemon")
 	port := fs.Int("port", core.DefaultPort, "daemon port")
 	dev := fs.Bool("dev", false, "use dev_assets")
+	configDir := fs.String("config-dir", "", "override daemon config directory")
+	mockNLM := fs.String("mock-nlm", "", "use a local JSON-backed mock for NotebookLM calls")
+	mockNLMArtifacts := fs.String("mock-nlm-artifacts", "", "mock NotebookLM artifact fixture directory")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
 	cfg := core.NewRuntimeConfig(*dev)
+	cfg.SetConfigDir(*configDir)
 	if err := cfg.Ensure(); err != nil {
 		return err
 	}
 	if *port != core.DefaultPort {
 		cfg.Port = *port
+	}
+	if *mockNLM != "" {
+		artifactDir := *mockNLMArtifacts
+		if artifactDir == "" {
+			artifactDir = filepath.Join(filepath.Dir(cfg.ConfigDir), "assets", "mock-artifacts")
+		}
+		if err := nlm.UseMockBackend(*mockNLM, artifactDir); err != nil {
+			return err
+		}
+		log.Printf("[daemon] NotebookLM mock enabled with state %s", *mockNLM)
 	}
 
 	db, err := store.Open(cfg.DBPath())

@@ -17,6 +17,9 @@ type DownloadReceiver struct {
 
 // NewDownloadReceiver creates a receiver that copies files to the Downloads folder.
 func NewDownloadReceiver() *DownloadReceiver {
+	if outputDir := os.Getenv("SEND2NLM_DOWNLOAD_DIR"); outputDir != "" {
+		return &DownloadReceiver{outputDir: outputDir}
+	}
 	home, _ := os.UserHomeDir()
 	return &DownloadReceiver{
 		outputDir: filepath.Join(home, "Downloads", "send2nlm"),

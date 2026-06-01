@@ -18,6 +18,7 @@ Thumbs.db
 
 # Dev assets (contains local DB, config, temp files)
 dev_assets
+e2e/
 
 # Dependencies
 node_modules/

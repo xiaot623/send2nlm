@@ -253,9 +253,26 @@ cd daemon && go run . daemon --dev
 # 或通过环境变量
 SEND2NLM_DEV=1 go run . daemon
 
+# 以本地 JSON mock NotebookLM 调用启动 daemon
+npm run dev:mock
+
+# 针对一个网页运行完整 QA 流程
+npm run qa -- https://example.com/article
+
 # 加载扩展
 # Chrome → chrome://extensions → "加载已解压的扩展程序" → extension/
 ```
+
+`npm run dev:mock` 首次运行时会从 `assets/mock_notebooklm.seed.json`
+初始化 `dev_assets/mock_notebooklm.json`，之后将该 JSON 文件作为可变的本地
+NotebookLM 状态。只有 NotebookLM 访问会被 mock；daemon HTTP API、SQLite、
+pipeline、producer 和 receiver 都保持正常行为。
+
+`npm run qa -- <url>` 会启动一套独立的 mock daemon，并把完整流程日志保存在
+`e2e/<timestamp>/`：列出笔记本、创建笔记本、刷新笔记本、上传网页、默认触发
+全部产物任务、轮询到完成，并执行 receiver。每一步响应、daemon 日志、mock
+状态、pipeline 产物和 receiver 输出都会保留在该目录中。QA 运行时，内置
+producer 的 opencli 工作目录也会重定向到 `e2e/<timestamp>/producer/`。
 
 ### 项目结构
 

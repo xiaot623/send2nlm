@@ -54,7 +54,7 @@ func (p *LarkProducer) Produce(ctx context.Context, url string) (string, error) 
 	}
 
 	// 2. Create a job directory for the export
-	jobDir := filepath.Join("/tmp/send2nlm", time.Now().UTC().Format("20060102-150405"))
+	jobDir := filepath.Join(producerOutputBaseDir(), time.Now().UTC().Format("20060102-150405"))
 	if err := os.MkdirAll(jobDir, 0o755); err != nil {
 		return "", fmt.Errorf("lark mkdir: %w", err)
 	}
@@ -109,6 +109,13 @@ func (p *LarkProducer) Produce(ctx context.Context, url string) (string, error) 
 	}
 
 	return "", fmt.Errorf("lark export: unexpected state")
+}
+
+func producerOutputBaseDir() string {
+	if dir := os.Getenv("SEND2NLM_PRODUCER_OUTPUT_DIR"); dir != "" {
+		return dir
+	}
+	return "/tmp/send2nlm"
 }
 
 // runLarkCLI executes lark-cli with the given arguments.

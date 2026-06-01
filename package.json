@@ -18,7 +18,10 @@
     "check": "npm run check:daemon && npm run check:ext",
     "check:daemon": "cd daemon && go vet ./... && go test ./...",
     "check:ext": "cd extension && npx tsc --noEmit",
-    "dev": "cd daemon && go run . daemon --dev"
+    "dev": "cd daemon && go run . daemon --dev",
+    "dev:mock": "node scripts/dev_mock.js",
+    "qa": "node scripts/qa.js",
+    "test:e2e:mock": "node scripts/e2e_mock.js"
   },
   "files": [
     "bin",

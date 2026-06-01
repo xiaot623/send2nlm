@@ -31,7 +31,7 @@ func (p *DefaultProducer) Match(url string) bool { return true }
 
 func (p *DefaultProducer) Produce(ctx context.Context, url string) (string, error) {
 	// 1. Create output directory. opencli stores downloaded article images here.
-	outputDir := filepath.Join(os.TempDir(), "send2nlm", time.Now().UTC().Format("20060102-150405"))
+	outputDir := defaultProducerOutputDir()
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return "", fmt.Errorf("default producer mkdir: %w", err)
 	}
@@ -59,6 +59,14 @@ func (p *DefaultProducer) Produce(ctx context.Context, url string) (string, erro
 	}
 
 	return pdfPath, nil
+}
+
+func defaultProducerOutputDir() string {
+	baseDir := os.Getenv("SEND2NLM_PRODUCER_OUTPUT_DIR")
+	if baseDir == "" {
+		baseDir = filepath.Join(os.TempDir(), "send2nlm")
+	}
+	return filepath.Join(baseDir, time.Now().UTC().Format("20060102-150405"))
 }
 
 type opencliArticle struct {

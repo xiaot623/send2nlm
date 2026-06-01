@@ -1,0 +1,25 @@
+{
+  "notebooks": [
+    {
+      "id": "mock-nb-seed",
+      "title": "Mock Research Notebook",
+      "is_owner": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "url": "https://notebooklm.google.com/notebook/mock-nb-seed",
+      "emoji": "T"
+    }
+  ],
+  "sources": {
+    "mock-nb-seed": [
+      {
+        "id": "mock-src-seed",
+        "title": "Seed Article.pdf",
+        "type": "file"
+      }
+    ]
+  },
+  "tasks": {},
+  "next_notebook": 1,
+  "next_source": 1,
+  "next_task": 1
+}
