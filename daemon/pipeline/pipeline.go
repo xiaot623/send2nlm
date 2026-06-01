@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"send2nlm/core"
@@ -264,7 +265,15 @@ func (p *Pipeline) downloadAndReceive(ctx context.Context, job *core.Job, taskRe
 func (p *Pipeline) receive(ctx context.Context, job *core.Job, taskResults map[string]core.TaskResult) error {
 	// ── Step 6: RECEIVING ───────────────────────────────────────────────
 	_ = p.store.UpdateJobStatus(ctx, job.ID, core.StatusReceiving)
-	resources := buildResources(job, taskResults)
+	notebookURL, err := p.store.NotebookURL(ctx, job.NotebookID)
+	if err != nil {
+		log.Printf("[pipeline] notebook url lookup warning: %v", err)
+	}
+	if notebookURL == "" {
+		notebookURL = notebookURLFromID(job.NotebookID)
+	}
+
+	resources := buildResources(job, taskResults, notebookURL)
 	errs := p.receivers.Deliver(ctx, resources)
 	for _, err := range errs {
 		log.Printf("[pipeline] receiver delivery warning: %v", err)
@@ -329,7 +338,7 @@ func filepathInTemp(tmpDir, jobID string) string {
 }
 
 // buildResources converts core.TaskResult map to []sdk.Resource for receiver delivery.
-func buildResources(job *core.Job, results map[string]core.TaskResult) []sdk.Resource {
+func buildResources(job *core.Job, results map[string]core.TaskResult, notebookURL string) []sdk.Resource {
 	var out []sdk.Resource
 	for taskType, tr := range results {
 		mime := "application/octet-stream"
@@ -346,10 +355,19 @@ func buildResources(job *core.Job, results map[string]core.TaskResult) []sdk.Res
 			AssetPath:     tr.AssetPath,
 			MimeType:      mime,
 			NotebookTitle: job.NotebookTitle,
+			NotebookURL:   notebookURL,
 			SourceURL:     job.URL,
 		}
 		r.DeliveryName = sdk.BuildDeliveryName(r)
 		out = append(out, r)
 	}
 	return out
+}
+
+func notebookURLFromID(notebookID string) string {
+	notebookID = strings.TrimSpace(notebookID)
+	if notebookID == "" {
+		return ""
+	}
+	return "https://notebooklm.google.com/notebook/" + notebookID
 }

@@ -96,6 +96,15 @@ func (s *Store) NotebookTitle(ctx context.Context, notebookID string) (string, e
 	return title, err
 }
 
+func (s *Store) NotebookURL(ctx context.Context, notebookID string) (string, error) {
+	var url string
+	err := s.db.QueryRowContext(ctx, `SELECT url FROM notebooks WHERE id = ?`, notebookID).Scan(&url)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return url, err
+}
+
 func (s *Store) ListUploadedNotebooks(ctx context.Context, rawURL string) ([]core.UploadedNotebook, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT

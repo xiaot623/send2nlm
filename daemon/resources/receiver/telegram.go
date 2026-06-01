@@ -54,16 +54,15 @@ func (r *TelegramReceiver) Receive(ctx context.Context, resources []sdk.Resource
 
 	// Send a summary message
 	sourceURL := ""
+	notebookTitle := ""
+	notebookURL := ""
 	if len(resources) > 0 {
 		sourceURL = resources[0].SourceURL
-	}
-	notebookTitle := ""
-	if len(resources) > 0 {
 		notebookTitle = resources[0].NotebookTitle
+		notebookURL = resources[0].NotebookURL
 	}
 
-	msg := fmt.Sprintf("📬 *Send2NLM Job Complete*\nNotebook: %s\nSource: %s",
-		notebookTitle, sourceURL)
+	msg := telegramSummaryMessage(notebookTitle, notebookURL, sourceURL)
 	if err := telegramSendMessage(ctx, botToken, chatID, msg); err != nil {
 		return fmt.Errorf("telegram message: %w", err)
 	}
@@ -73,12 +72,37 @@ func (r *TelegramReceiver) Receive(ctx context.Context, resources []sdk.Resource
 		if res.AssetPath == "" {
 			continue
 		}
-		if err := telegramSendDocument(ctx, botToken, chatID, res.AssetPath, res.DeliveryName); err != nil {
-			return fmt.Errorf("telegram document %s: %w", res.TaskType, err)
+		if err := telegramSendResource(ctx, botToken, chatID, res); err != nil {
+			return fmt.Errorf("telegram resource %s: %w", res.TaskType, err)
 		}
 	}
 
 	return nil
+}
+
+func telegramSummaryMessage(notebookTitle, notebookURL, sourceURL string) string {
+	msg := fmt.Sprintf("📬 *Send2NLM Job Complete*\nNotebook: %s", notebookTitle)
+	if notebookURL != "" {
+		msg += fmt.Sprintf("\nNotebookLM: %s", notebookURL)
+	}
+	msg += fmt.Sprintf("\nSource: %s", sourceURL)
+	return msg
+}
+
+func telegramSendResource(ctx context.Context, token, chatID string, res sdk.Resource) error {
+	method, fileField, fields := telegramResourceUploadSpec(res)
+	return telegramSendMultipartFile(ctx, token, method, chatID, fileField, res.AssetPath, res.DeliveryName, fields)
+}
+
+func telegramResourceUploadSpec(res sdk.Resource) (string, string, map[string]string) {
+	switch res.TaskType {
+	case "audio_overview":
+		return "sendAudio", "audio", nil
+	case "video_overview":
+		return "sendVideo", "video", map[string]string{"supports_streaming": "true"}
+	default:
+		return "sendDocument", "document", nil
+	}
 }
 
 func telegramSendMessage(ctx context.Context, token, chatID, text string) error {
@@ -106,6 +130,20 @@ func telegramSendMessage(ctx context.Context, token, chatID, text string) error 
 }
 
 func telegramSendDocument(ctx context.Context, token, chatID, path, filename string) error {
+	return telegramSendMultipartFile(ctx, token, "sendDocument", chatID, "document", path, filename, nil)
+}
+
+func telegramSendAudio(ctx context.Context, token, chatID, path, filename string) error {
+	_, fileField, fields := telegramResourceUploadSpec(sdk.Resource{TaskType: "audio_overview"})
+	return telegramSendMultipartFile(ctx, token, "sendAudio", chatID, fileField, path, filename, fields)
+}
+
+func telegramSendVideo(ctx context.Context, token, chatID, path, filename string) error {
+	_, fileField, fields := telegramResourceUploadSpec(sdk.Resource{TaskType: "video_overview"})
+	return telegramSendMultipartFile(ctx, token, "sendVideo", chatID, fileField, path, filename, fields)
+}
+
+func telegramSendMultipartFile(ctx context.Context, token, method, chatID, fileField, path, filename string, fields map[string]string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
@@ -115,7 +153,10 @@ func telegramSendDocument(ctx context.Context, token, chatID, path, filename str
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 	_ = writer.WriteField("chat_id", chatID)
-	part, err := writer.CreateFormFile("document", filename)
+	for key, value := range fields {
+		_ = writer.WriteField(key, value)
+	}
+	part, err := writer.CreateFormFile(fileField, filename)
 	if err != nil {
 		return err
 	}
@@ -127,7 +168,7 @@ func telegramSendDocument(ctx context.Context, token, chatID, path, filename str
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		"https://api.telegram.org/bot"+token+"/sendDocument",
+		"https://api.telegram.org/bot"+token+"/"+method,
 		&body)
 	if err != nil {
 		return err
@@ -140,7 +181,7 @@ func telegramSendDocument(ctx context.Context, token, chatID, path, filename str
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		data, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("telegram sendDocument HTTP %d: %s", resp.StatusCode, string(data))
+		return fmt.Errorf("telegram %s HTTP %d: %s", method, resp.StatusCode, string(data))
 	}
 	return nil
 }
