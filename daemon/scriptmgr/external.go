@@ -24,8 +24,10 @@ import (
 type PluginKind string
 
 const (
-	ProducerPlugin PluginKind = "producer"
-	ReceiverPlugin PluginKind = "receiver"
+	ProducerPlugin      PluginKind = "producer"
+	ReceiverPlugin      PluginKind = "receiver"
+	URLAspectPlugin     PluginKind = "url_aspect"
+	ReceiveAspectPlugin PluginKind = "receive_aspect"
 )
 
 type Loader struct {
@@ -35,11 +37,29 @@ type Loader struct {
 }
 
 func NewLoader(configDir, cacheDir string) *Loader {
-	moduleDir, _ := os.Getwd()
+	cwd, _ := os.Getwd()
+	moduleDir := findModuleDir(cwd)
 	return &Loader{
 		configDir: configDir,
 		cacheDir:  cacheDir,
 		moduleDir: moduleDir,
+	}
+}
+
+func findModuleDir(start string) string {
+	if _, err := os.Stat(filepath.Join(start, "daemon", "go.mod")); err == nil {
+		return filepath.Join(start, "daemon")
+	}
+	dir := start
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return start
+		}
+		dir = parent
 	}
 }
 
@@ -55,6 +75,18 @@ func LoadReceiverDir(loader *Loader, registry *ReceiverRegistry, dir string) {
 	log.Printf("[scriptmgr] loaded %d receiver plugin(s) from %s", len(receivers), dir)
 }
 
+func LoadURLAspectDir(loader *Loader, registry *URLAspectRegistry, dir string) {
+	aspects := evaluateURLAspectDir(loader, dir)
+	registry.SetScripts(aspects)
+	log.Printf("[scriptmgr] loaded %d url aspect plugin(s) from %s", len(aspects), dir)
+}
+
+func LoadReceiveAspectDir(loader *Loader, registry *ReceiveAspectRegistry, dir string) {
+	aspects := evaluateReceiveAspectDir(loader, dir)
+	registry.SetScripts(aspects)
+	log.Printf("[scriptmgr] loaded %d receive aspect plugin(s) from %s", len(aspects), dir)
+}
+
 func WatchProducerDir(loader *Loader, registry *ProducerRegistry, dir string) error {
 	return watchDir(dir, func() {
 		LoadProducerDir(loader, registry, dir)
@@ -64,6 +96,18 @@ func WatchProducerDir(loader *Loader, registry *ProducerRegistry, dir string) er
 func WatchReceiverDir(loader *Loader, registry *ReceiverRegistry, dir string) error {
 	return watchDir(dir, func() {
 		LoadReceiverDir(loader, registry, dir)
+	})
+}
+
+func WatchURLAspectDir(loader *Loader, registry *URLAspectRegistry, dir string) error {
+	return watchDir(dir, func() {
+		LoadURLAspectDir(loader, registry, dir)
+	})
+}
+
+func WatchReceiveAspectDir(loader *Loader, registry *ReceiveAspectRegistry, dir string) error {
+	return watchDir(dir, func() {
+		LoadReceiveAspectDir(loader, registry, dir)
 	})
 }
 
@@ -103,6 +147,46 @@ func evaluateReceiverDir(loader *Loader, dir string) []sdk.Receiver {
 		r := &ExternalReceiver{plugin: plugin}
 		log.Printf("[scriptmgr] loaded receiver %q from %s", r.Name(), filepath.Base(path))
 		out = append(out, r)
+	}
+	return out
+}
+
+func evaluateURLAspectDir(loader *Loader, dir string) []sdk.URLAspect {
+	paths, err := pluginFiles(dir)
+	if err != nil {
+		log.Printf("[scriptmgr] cannot read url aspect dir %s: %v", dir, err)
+		return nil
+	}
+	out := make([]sdk.URLAspect, 0, len(paths))
+	for _, path := range paths {
+		plugin, err := loader.compile(path, URLAspectPlugin)
+		if err != nil {
+			log.Printf("[scriptmgr] skip url aspect %s: %v", filepath.Base(path), err)
+			continue
+		}
+		a := &ExternalURLAspect{plugin: plugin}
+		log.Printf("[scriptmgr] loaded url aspect %q from %s", a.Name(), filepath.Base(path))
+		out = append(out, a)
+	}
+	return out
+}
+
+func evaluateReceiveAspectDir(loader *Loader, dir string) []sdk.ReceiveAspect {
+	paths, err := pluginFiles(dir)
+	if err != nil {
+		log.Printf("[scriptmgr] cannot read receive aspect dir %s: %v", dir, err)
+		return nil
+	}
+	out := make([]sdk.ReceiveAspect, 0, len(paths))
+	for _, path := range paths {
+		plugin, err := loader.compile(path, ReceiveAspectPlugin)
+		if err != nil {
+			log.Printf("[scriptmgr] skip receive aspect %s: %v", filepath.Base(path), err)
+			continue
+		}
+		a := &ExternalReceiveAspect{plugin: plugin}
+		log.Printf("[scriptmgr] loaded receive aspect %q from %s", a.Name(), filepath.Base(path))
+		out = append(out, a)
 	}
 	return out
 }
@@ -169,6 +253,7 @@ func watchDir(dir string, reload func()) error {
 type compiledPlugin struct {
 	kind      PluginKind
 	name      string
+	priority  int
 	binary    string
 	configDir string
 }
@@ -188,11 +273,12 @@ func (l *Loader) compile(path string, kind PluginKind) (*compiledPlugin, error) 
 		}
 	}
 	plugin := &compiledPlugin{kind: kind, binary: binary, configDir: l.configDir}
-	name, err := plugin.metadata(context.Background())
+	name, priority, err := plugin.metadata(context.Background())
 	if err != nil {
 		return nil, err
 	}
 	plugin.name = name
+	plugin.priority = priority
 	return plugin, nil
 }
 
@@ -237,6 +323,10 @@ func wrapSource(source []byte, kind PluginKind) ([]byte, error) {
 		text += "\nfunc main() { sdk.ServeProducer(Producer) }\n"
 	case ReceiverPlugin:
 		text += "\nfunc main() { sdk.ServeReceiver(Receiver) }\n"
+	case URLAspectPlugin:
+		text += "\nfunc main() { sdk.ServeURLAspect(URLAspect) }\n"
+	case ReceiveAspectPlugin:
+		text += "\nfunc main() { sdk.ServeReceiveAspect(ReceiveAspect) }\n"
 	default:
 		return nil, fmt.Errorf("unknown plugin kind %q", kind)
 	}
@@ -250,21 +340,24 @@ type pluginRequest struct {
 }
 
 type pluginResponse struct {
-	Name    string `json:"name,omitempty"`
-	Match   bool   `json:"match,omitempty"`
-	PDFPath string `json:"pdf_path,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Name      string         `json:"name,omitempty"`
+	Priority  int            `json:"priority,omitempty"`
+	Match     bool           `json:"match,omitempty"`
+	PDFPath   string         `json:"pdf_path,omitempty"`
+	URL       string         `json:"url,omitempty"`
+	Resources []sdk.Resource `json:"resources,omitempty"`
+	Error     string         `json:"error,omitempty"`
 }
 
-func (p *compiledPlugin) metadata(ctx context.Context) (string, error) {
+func (p *compiledPlugin) metadata(ctx context.Context) (string, int, error) {
 	resp, err := p.call(ctx, pluginRequest{Method: "metadata"})
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	if resp.Name == "" {
-		return "", fmt.Errorf("plugin returned empty name")
+		return "", 0, fmt.Errorf("plugin returned empty name")
 	}
-	return resp.Name, nil
+	return resp.Name, resp.Priority, nil
 }
 
 func (p *compiledPlugin) call(ctx context.Context, req pluginRequest) (pluginResponse, error) {
@@ -326,4 +419,36 @@ func (r *ExternalReceiver) Name() string { return r.plugin.name }
 func (r *ExternalReceiver) Receive(ctx context.Context, resources []sdk.Resource) error {
 	_, err := r.plugin.call(ctx, pluginRequest{Method: "receive", Resources: resources})
 	return err
+}
+
+type ExternalURLAspect struct {
+	plugin *compiledPlugin
+}
+
+func (a *ExternalURLAspect) Name() string { return a.plugin.name }
+
+func (a *ExternalURLAspect) Priority() int { return a.plugin.priority }
+
+func (a *ExternalURLAspect) OnURL(ctx context.Context, url string) (string, error) {
+	resp, err := a.plugin.call(ctx, pluginRequest{Method: "url", URL: url})
+	if err != nil {
+		return "", err
+	}
+	return resp.URL, nil
+}
+
+type ExternalReceiveAspect struct {
+	plugin *compiledPlugin
+}
+
+func (a *ExternalReceiveAspect) Name() string { return a.plugin.name }
+
+func (a *ExternalReceiveAspect) Priority() int { return a.plugin.priority }
+
+func (a *ExternalReceiveAspect) BeforeReceive(ctx context.Context, resources []sdk.Resource) ([]sdk.Resource, error) {
+	resp, err := a.plugin.call(ctx, pluginRequest{Method: "before_receive", Resources: resources})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Resources, nil
 }

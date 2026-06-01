@@ -145,9 +145,14 @@ func (a *App) handleUploadResource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	url, err := a.urlAspects.Apply(ctx, req.URL)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
 
 	// Step 1: URL -> PDF
-	pdfPath, err := a.producers.Resolve(ctx, req.URL)
+	pdfPath, err := a.producers.Resolve(ctx, url)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -159,7 +164,7 @@ func (a *App) handleUploadResource(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := a.store.RecordUploadedSource(ctx, req.URL, notebookID, sourceID); err != nil {
+	if err := a.store.RecordUploadedSource(ctx, url, notebookID, sourceID); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}

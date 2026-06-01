@@ -17,20 +17,25 @@ import (
 
 // Pipeline orchestrates the full URL → PDF → NotebookLM flow.
 type Pipeline struct {
-	cfg       core.RuntimeConfig
-	store     *store.Store
-	producers *scriptmgr.ProducerRegistry
-	receivers *scriptmgr.ReceiverRegistry
-	queue     chan *core.Job
+	cfg            core.RuntimeConfig
+	store          *store.Store
+	producers      *scriptmgr.ProducerRegistry
+	receivers      *scriptmgr.ReceiverRegistry
+	receiveAspects *scriptmgr.ReceiveAspectRegistry
+	queue          chan *core.Job
 }
 
-func New(cfg core.RuntimeConfig, st *store.Store, producers *scriptmgr.ProducerRegistry, receivers *scriptmgr.ReceiverRegistry) *Pipeline {
+func New(cfg core.RuntimeConfig, st *store.Store, producers *scriptmgr.ProducerRegistry, receivers *scriptmgr.ReceiverRegistry, receiveAspects *scriptmgr.ReceiveAspectRegistry) *Pipeline {
+	if receiveAspects == nil {
+		receiveAspects = scriptmgr.NewReceiveAspectRegistry()
+	}
 	p := &Pipeline{
-		cfg:       cfg,
-		store:     st,
-		producers: producers,
-		receivers: receivers,
-		queue:     make(chan *core.Job, 16),
+		cfg:            cfg,
+		store:          st,
+		producers:      producers,
+		receivers:      receivers,
+		receiveAspects: receiveAspects,
+		queue:          make(chan *core.Job, 16),
 	}
 	go p.loop()
 	go p.resumeIncomplete()
@@ -274,6 +279,14 @@ func (p *Pipeline) receive(ctx context.Context, job *core.Job, taskResults map[s
 	}
 
 	resources := buildResources(job, taskResults, notebookURL)
+	resources, err = p.receiveAspects.Apply(ctx, resources)
+	if err != nil {
+		_ = p.store.UpdateJobProgress(ctx, job.ID, map[string]any{
+			"status": core.StatusFailed,
+			"error":  err.Error(),
+		})
+		return err
+	}
 	errs := p.receivers.Deliver(ctx, resources)
 	for _, err := range errs {
 		log.Printf("[pipeline] receiver delivery warning: %v", err)

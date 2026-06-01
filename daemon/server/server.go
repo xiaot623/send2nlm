@@ -10,20 +10,25 @@ import (
 )
 
 type App struct {
-	cfg       core.RuntimeConfig
-	store     *store.Store
-	version   string
-	pipeline  core.JobExecutor
-	producers *scriptmgr.ProducerRegistry
+	cfg        core.RuntimeConfig
+	store      *store.Store
+	version    string
+	pipeline   core.JobExecutor
+	producers  *scriptmgr.ProducerRegistry
+	urlAspects *scriptmgr.URLAspectRegistry
 }
 
-func NewApp(cfg core.RuntimeConfig, st *store.Store, version string, producers *scriptmgr.ProducerRegistry, receivers *scriptmgr.ReceiverRegistry) *App {
+func NewApp(cfg core.RuntimeConfig, st *store.Store, version string, producers *scriptmgr.ProducerRegistry, receivers *scriptmgr.ReceiverRegistry, urlAspects *scriptmgr.URLAspectRegistry, receiveAspects *scriptmgr.ReceiveAspectRegistry) *App {
+	if urlAspects == nil {
+		urlAspects = scriptmgr.NewURLAspectRegistry()
+	}
 	return &App{
-		cfg:       cfg,
-		store:     st,
-		version:   version,
-		pipeline:  pipeline.New(cfg, st, producers, receivers),
-		producers: producers,
+		cfg:        cfg,
+		store:      st,
+		version:    version,
+		pipeline:   pipeline.New(cfg, st, producers, receivers, receiveAspects),
+		producers:  producers,
+		urlAspects: urlAspects,
 	}
 }
 

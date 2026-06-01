@@ -62,9 +62,18 @@ func runDaemon(args []string) error {
 	scriptmgr.LoadReceiverDir(loader, receiverReg, cfg.ReceiverDir())
 	_ = scriptmgr.WatchReceiverDir(loader, receiverReg, cfg.ReceiverDir())
 
+	// Aspect registries
+	urlAspectReg := scriptmgr.NewURLAspectRegistry()
+	scriptmgr.LoadURLAspectDir(loader, urlAspectReg, cfg.URLAspectDir())
+	_ = scriptmgr.WatchURLAspectDir(loader, urlAspectReg, cfg.URLAspectDir())
+
+	receiveAspectReg := scriptmgr.NewReceiveAspectRegistry()
+	scriptmgr.LoadReceiveAspectDir(loader, receiveAspectReg, cfg.ReceiveAspectDir())
+	_ = scriptmgr.WatchReceiveAspectDir(loader, receiveAspectReg, cfg.ReceiveAspectDir())
+
 	log.Printf("[daemon] external plugin system initialized")
 
-	app := server.NewApp(cfg, db, version, producerReg, receiverReg)
+	app := server.NewApp(cfg, db, version, producerReg, receiverReg, urlAspectReg, receiveAspectReg)
 
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", cfg.Port))
 	if err != nil {

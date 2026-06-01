@@ -15,10 +15,13 @@ type pluginRequest struct {
 }
 
 type pluginResponse struct {
-	Name    string `json:"name,omitempty"`
-	Match   bool   `json:"match,omitempty"`
-	PDFPath string `json:"pdf_path,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Name      string     `json:"name,omitempty"`
+	Priority  int        `json:"priority,omitempty"`
+	Match     bool       `json:"match,omitempty"`
+	PDFPath   string     `json:"pdf_path,omitempty"`
+	URL       string     `json:"url,omitempty"`
+	Resources []Resource `json:"resources,omitempty"`
+	Error     string     `json:"error,omitempty"`
 }
 
 // ServeProducer exposes a Producer implementation over a single stdio JSON call.
@@ -54,6 +57,42 @@ func ServeReceiver(r Receiver) {
 			return pluginResponse{Name: r.Name()}, nil
 		default:
 			return pluginResponse{Name: r.Name()}, fmt.Errorf("unknown receiver method %q", req.Method)
+		}
+	})
+}
+
+// ServeURLAspect exposes a URLAspect implementation over a single stdio JSON call.
+func ServeURLAspect(a URLAspect) {
+	serve(func(ctx context.Context, req pluginRequest) (pluginResponse, error) {
+		switch req.Method {
+		case "metadata":
+			return pluginResponse{Name: a.Name(), Priority: a.Priority()}, nil
+		case "url":
+			url, err := a.OnURL(ctx, req.URL)
+			if err != nil {
+				return pluginResponse{Name: a.Name(), Priority: a.Priority()}, err
+			}
+			return pluginResponse{Name: a.Name(), Priority: a.Priority(), URL: url}, nil
+		default:
+			return pluginResponse{Name: a.Name(), Priority: a.Priority()}, fmt.Errorf("unknown url aspect method %q", req.Method)
+		}
+	})
+}
+
+// ServeReceiveAspect exposes a ReceiveAspect implementation over a single stdio JSON call.
+func ServeReceiveAspect(a ReceiveAspect) {
+	serve(func(ctx context.Context, req pluginRequest) (pluginResponse, error) {
+		switch req.Method {
+		case "metadata":
+			return pluginResponse{Name: a.Name(), Priority: a.Priority()}, nil
+		case "before_receive":
+			resources, err := a.BeforeReceive(ctx, req.Resources)
+			if err != nil {
+				return pluginResponse{Name: a.Name(), Priority: a.Priority()}, err
+			}
+			return pluginResponse{Name: a.Name(), Priority: a.Priority(), Resources: resources}, nil
+		default:
+			return pluginResponse{Name: a.Name(), Priority: a.Priority()}, fmt.Errorf("unknown receive aspect method %q", req.Method)
 		}
 	})
 }

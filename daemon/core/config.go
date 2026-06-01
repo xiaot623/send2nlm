@@ -37,6 +37,8 @@ func (c RuntimeConfig) Ensure() error {
 		c.ConfigDir,
 		c.ProducerDir(),
 		c.ReceiverDir(),
+		c.URLAspectDir(),
+		c.ReceiveAspectDir(),
 		c.TempDir(),
 		c.PluginCacheDir(),
 	} {
@@ -49,7 +51,14 @@ func (c RuntimeConfig) Ensure() error {
 
 func (c RuntimeConfig) ProducerDir() string { return filepath.Join(c.ConfigDir, "producer") }
 func (c RuntimeConfig) ReceiverDir() string { return filepath.Join(c.ConfigDir, "receiver") }
-func (c RuntimeConfig) TempDir() string     { return filepath.Join(c.ConfigDir, "tmp") }
+func (c RuntimeConfig) AspectDir() string   { return filepath.Join(c.ConfigDir, "aspect") }
+func (c RuntimeConfig) URLAspectDir() string {
+	return filepath.Join(c.AspectDir(), "url")
+}
+func (c RuntimeConfig) ReceiveAspectDir() string {
+	return filepath.Join(c.AspectDir(), "receive")
+}
+func (c RuntimeConfig) TempDir() string { return filepath.Join(c.ConfigDir, "tmp") }
 func (c RuntimeConfig) PluginCacheDir() string {
 	return filepath.Join(c.ConfigDir, "cache", "plugins")
 }
