@@ -382,6 +382,9 @@ func (p *compiledPlugin) call(ctx context.Context, req pluginRequest) (pluginRes
 	if err != nil {
 		return resp, err
 	}
+	if stderr.Len() > 0 {
+		log.Printf("[plugin:%s] %s", p.name, strings.TrimSpace(stderr.String()))
+	}
 	return resp, nil
 }
 
